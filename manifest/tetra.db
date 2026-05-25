@@ -1,0 +1,11 @@
+AIF=true
+https://minux.cc/apt/2.0/soft/
+version=1.0
+author=Aio
+php=true
+[filelist]
+/bin/tetra.sh
+/etc/tetra/installer.sys
+/etc/apt/alias/tetra.al
+/etc/man/tetra.man
+/etc/apt/cleanup/tetra.db

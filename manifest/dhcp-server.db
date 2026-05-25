@@ -1,0 +1,17 @@
+AIF=true
+https://minux.cc/apt/2.0/soft/
+version=1.0.1
+author=minux-team
+php=true
+[depstart]
+netlib
+[depstop]
+[filelist]
+/bin/dhcp-server.sh
+/etc/dhcp-server/dhcp-server.sys
+/etc/dhcp-server/handlerequest.sys
+/etc/server.sys
+/etc/api/dhcpserv
+/etc/apt/alias/dhcp-server.al
+/etc/apt/boot/dhcp-server.d
+/etc/man/dhcp-server.man

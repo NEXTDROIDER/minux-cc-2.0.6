@@ -1,0 +1,12 @@
+AIF=true
+https://minux.cc/apt/2.0/soft/
+version=1.0
+author=Reimar
+php=true
+[filelist]
+/bin/minex.sh
+/gbin/minexplorer.exe
+/etc/apt/cleanup/minex.db
+/etc/apt/alias/minex.al
+/etc/man/minex.man
+/etc/man/explorer.man

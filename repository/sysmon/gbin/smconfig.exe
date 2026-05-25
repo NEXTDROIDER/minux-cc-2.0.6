@@ -1,0 +1,45 @@
+-- system monitor menu config tool
+-- login config menu
+local smmenu = true
+while smmenu == true do
+	local loginsetting = minux.getconfig("login")
+	local title = "system monitor configuration tool"
+	local choices = {}
+    choices = {"return/exit", "refresh - set how often status is checked", "add system - add a computer to check", "delete system - remove a system to check"}
+	local actions = {}
+
+	actions[1] = function()
+	smmenu = false
+	end
+	actions[2] = function()
+        minux.debug("smcfg:refresh" , "sysmon")
+        term.clear()
+        print("changing sysmon refresh rate")
+        write("refresh rate in seconds:")
+        local input = read()
+        shell.run("/bin/smconfig.sh refresh "..input)
+        print("Hit enter to continue")
+        read()
+	end
+	actions[3] = function()
+        minux.debug("smcfg:add" , "sysmon")
+        print("Add a system to the check list")
+        write("System name:")
+        local name = read()
+        write("system ID:")
+        local id = read()
+        shell.run("/bin/smconfig.sh sysadd "..name.." "..id)
+        print("Hit enter to continue")
+        read()
+	end
+	actions[4] = function()
+        minux.debug("smcfg:del","sysmon")
+        print("Delete a system from the check list")
+        write("system ID:")
+        local id = read()
+        shell.run("/bin/smconfig.sh sysdel "..id)
+        print("Hit enter to continue")
+        read()
+	end
+	menu.menuOptions(title, choices, actions)
+end

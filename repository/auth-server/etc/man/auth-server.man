@@ -1,0 +1,23 @@
+auth-server, controller app for the auth server
+executable location: '/bin/auth-server.sh'  alias: 'auth-server'
+auth-server is part of the 'auth-server' app
+
+this script is used to control the auth server, 
+making users or turning it on or off.
+
+syntax : 'auth-server status'
+syntax2: 'auth-server adduser username password'
+
+- status
+	displays the server status
+- start
+	starts the server
+- stop
+	stops the server
+	
+- adduser username password
+	adds a user to the network
+- addadmin username password
+	adds an admin to the network
+- deluser username
+	deletes a user from the network

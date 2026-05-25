@@ -1,0 +1,9 @@
+AIF=true
+https://minux.cc/apt/2.0/soft/
+version=1.0
+author=minux-team
+php=true
+[filelist]
+/bin/copydisk.sh
+/gbin/copyfloppydisk.exe
+/etc/apt/alias/copydisk.al

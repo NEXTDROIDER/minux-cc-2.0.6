@@ -1,0 +1,15 @@
+AIF=true
+https://minux.cc/apt/2.0/soft/
+version=1.0.2
+author=minux-team
+php=true
+[depstart]
+netfolder
+[depstop]
+[filelist]
+/bin/netsync.sh
+/etc/apt/alias/netsync.al
+/etc/apt/boot/netsync.d
+/etc/apt/autorun/netsync.sh
+/etc/man/netsync.man
+/etc/api/netsync

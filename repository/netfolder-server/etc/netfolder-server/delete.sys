@@ -1,0 +1,43 @@
+-- delete netfolder server side
+
+args = {...}
+clientid = tonumber(args[1])
+
+-- catch bad input
+if clientid == nil or clientid == "" then print("delete:Invalid input") return 0 end
+-- reply ack and establist connection
+local creply = netlib.sendstring(clientid,"NF-RM-ACK")
+if creply ~= true then
+	minux.debug("RM:E:702:Connect:Fail","netfolder")
+	return 702
+end
+-- listen to the data, it will be a table.
+local tdata = netlib.gettable(clientid,3)
+if tdata == nil or tdata == false then
+	minux.debug("RM:E:702:table-sync-fail","netfolder")
+	return 702
+end
+local temppath = tdata[1]
+local templogin = tdata[2]
+local temppass = tdata[3]
+-- verify user data with AUTH
+local ldata = minux.checkuser(templogin,temppass)
+if ldata[4] ~= true then
+	minux.debug("RM:703:U-"..templogin.." ID-"..clientid,"netfolder")
+	minux.monitorprint("RM:703:U-"..templogin.." ID-"..clientid)
+	rednet.send(clientid , "NF-RM-703")
+	return 703
+end
+-- we check if the file exists
+if fs.exists(_G.netfolderroot.."/"..templogin.."/"..temppath) == false then
+	minux.monitorprint("704:U-"..templogin.." F-"..temppath)
+	minux.debug("704:U-"..templogin.." F-"..temppath,"netfolder")
+	netlib.sendstring(clientid , "NF-RM-704")
+	return 0
+else
+	netlib.sendstring(clientid, "NF-RM-ACC")
+	minux.monitorprint("RM:U-"..templogin.." F-"..temppath)
+	minux.debug("RM:U-"..templogin.." F-"..temppath,"netfolder")
+	fs.delete(_G.netfolderroot.."/"..templogin.."/"..temppath)
+	return true
+end

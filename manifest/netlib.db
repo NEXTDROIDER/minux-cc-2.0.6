@@ -1,0 +1,12 @@
+AIF=true
+https://minux.cc/apt/2.0/soft/
+version=2.0
+author=minux-team
+php=true
+[filelist]
+/etc/api/netlib
+/etc/apt/alias/netlib.al
+/bin/ping.sh
+/bin/netlib.sh
+/bin/sendfile.sh
+/bin/getfile.sh

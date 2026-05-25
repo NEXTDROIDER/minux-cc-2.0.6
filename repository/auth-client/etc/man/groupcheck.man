@@ -1,0 +1,10 @@
+groupcheck, easy command to check user membership of a group
+executable location: '/bin/groupcheck.sh'  alias: 'groupcheck'
+groupcheck is part of the 'auth-client' app
+
+used to quickly determine group membership
+
+syntax: 'groupcheck groupname username'
+
+all users can check group membership.
+users need to be logged in and networked to adjust a group.

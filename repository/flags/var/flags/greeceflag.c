@@ -1,0 +1,28 @@
+function squarevert()
+	dev.colorwrite("     ","blue","blue")
+	dev.colorwrite("  ","white","white")
+	dev.colorwrite("     ","blue","blue")
+end
+function bluelinetop()
+	dev.colorprint("                                        ","blue","blue")
+end
+function whitelinetop()
+	dev.colorprint("                                        ","white","white")
+end
+function bottomlines()
+	dev.colorprint("                                                   ","white","white")
+	dev.colorprint("                                                   ","blue","blue")
+end
+squarevert()
+bluelinetop()
+squarevert()
+whitelinetop()
+dev.colorwrite("            ","white","white")
+bluelinetop()
+squarevert()
+whitelinetop()
+squarevert()
+bluelinetop()
+bottomlines()
+bottomlines()
+print("                                                              ")

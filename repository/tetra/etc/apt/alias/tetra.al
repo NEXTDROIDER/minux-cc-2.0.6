@@ -1,0 +1,1 @@
+if fs.exists("/bin/tetra.sh") then shell.setAlias("tetra" , "/bin/tetra.sh") end

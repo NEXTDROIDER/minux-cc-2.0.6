@@ -1,0 +1,9 @@
+-- pixeltank installer, this downloads the actual installer script as made by the developer.
+-- visit https://forums.computercraft.cc/index.php?topic=589.0
+print("Pixeltank comes from a 3rd party source, all rights reserved by 'Mr_Octopus'")
+print("type 'agreed' to proceed")
+input = read()
+if input ~= "agreed" then print("aborting") return 0 end
+
+print("downloading pixeltank")
+shell.run("pastebin run LYVUBJAQ")

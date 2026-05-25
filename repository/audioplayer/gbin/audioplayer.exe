@@ -1,0 +1,6 @@
+--audioplayer
+
+if fs.exists("/etc/audioplayer/audioplayer.sys") == false then
+	shell.run("pastebin get https://pastebin.com/q9M7z9nz /etc/audioplayer/audioplayer.sys")
+end
+shell.openTab("/etc/audioplayer/audioplayer.sys")

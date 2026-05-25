@@ -1,0 +1,10 @@
+groupleave, easy command to remove user membership of a group
+executable location: '/bin/groupleave.sh'  alias: 'groupleave'
+groupleave is part of the 'auth-client' app
+
+used to quickly revoke group membership
+
+syntax: 'groupleave groupname username'
+
+only group makers or admins can do this action.
+users need to be logged in and networked to adjust a group.

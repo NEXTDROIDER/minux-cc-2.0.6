@@ -1,0 +1,29 @@
+-- first run for config wizard
+if fs.exists("/usr/tablature/first.run") == false then
+    shell.run("/bin/tablature-config.sh")
+    return false
+end
+
+-- tablature server launcher.
+-- first we check if the start variable is already running to avoid running twice
+if _G.tablaturerunning == true then
+    print("tablature server is already running")
+    return false
+end
+-- loading settings, this loads the settings file in a table, if file not found generate a new one
+-- field 1 = webroot
+-- field 2 = name
+_G.tablaturecfg = {}
+if fs.exists("/usr/tablature-server/settings.cfg") then
+    minux.debug("RN:loading settings file","tablature")
+    _G.tablaturecfg = minux.readtable("/usr/tablature-server/settings.cfg")
+else
+    _G.tablaturecfg[1] = "/var/tablature/"
+    _G.tablaturecfg[2] = os.getComputerID()
+    minux.writetable("/usr/tablature-server/settings.cfg", _G.tablaturecfg)
+end
+-- we set the start/stop variable, launch the listen program and if it closes reset the variable then exit.
+_G.tablaturerunning = true
+shell.run("/etc/tablature/listen.sys")
+_G.tablaturerunning = false
+return 0

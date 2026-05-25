@@ -1,0 +1,11 @@
+AIF=true
+https://minux.cc/apt/2.0/soft/
+version=1.0
+author=Mensh123
+php=true
+[filelist]
+/bin/cryptofolder.sh
+/etc/apt/alias/cryptofolder
+/etc/man/cryptofolder.man
+/etc/cryptofolder/install.sys
+/etc/apt/cleanup/cryptofolder.db

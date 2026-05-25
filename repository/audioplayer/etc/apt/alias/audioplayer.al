@@ -1,0 +1,1 @@
+if fs.exists("/bin/audioplayer.sh") then shell.setAlias("audioplayer" , "/bin/audioplayer.sh") end

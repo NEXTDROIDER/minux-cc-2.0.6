@@ -1,0 +1,17 @@
+AIF=true
+https://minux.cc/apt/2.0/soft/
+version=1.0
+author=minux-team
+php=true
+[depstart]
+auth-client
+[depstop]
+[filelist]
+/etc/server.sys
+/etc/tablature/listen.sys
+/etc/tablature/handlerequest.sys
+/etc/tablature/handlepost.sys
+/etc/apt/alias/tablature-server.al
+/etc/apt/boot/tablature-server.d
+/bin/tablature-server.sh
+/bin/tablature-config.sh

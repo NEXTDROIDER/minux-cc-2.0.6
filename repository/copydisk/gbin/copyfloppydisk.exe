@@ -1,0 +1,7 @@
+-- just a way for a gui to identify working apps it can use.
+term.clear()
+term.setCursorPos(1,1)
+shell.run("/bin/copydisk.sh")
+print("")
+print("hit enter to exit")
+read()

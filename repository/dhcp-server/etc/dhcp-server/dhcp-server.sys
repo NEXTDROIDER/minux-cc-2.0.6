@@ -1,0 +1,67 @@
+-- minux DHCP server script
+minux.debug("dhcp-serv:start","dhcp")
+
+-- reset crash handler, dhcp never actually shuts down. then load the API
+local tempfile = fs.open("/temp/minux/boot/fail4.tmp" ,"w")
+tempfile.write("0")
+tempfile.close()
+
+-- first we look for the authentication server
+minux.debug("dhcp-serv:searching for AUTH server file","dhcp")
+_G.validlogin = false
+if fs.exists("/usr/dhcp-server/auth.cfg") then
+minux.debug("dhcp-serv:file found","dhcp")
+	authfile = fs.open("/usr/dhcp-server/auth.cfg","r")
+	temp = authfile.readLine()
+	if temp == "AUTHCONF" then
+		_G.authserver = tonumber(authfile.readLine())
+		minux.debug("dhcp-serv:auth=".._G.authserver,"dhcp")
+		print("AUTH server set to:".._G.authserver)
+	else
+		minux.debug("dhcp-serv:E:505:data corrupt","dhcp")
+		print("Configuration file corrupt, ignoring")
+	end
+	authfile.close()
+else
+	minux.debug("dhcp-serv:E:506:no config file found","dhcp")
+	print("Warning:No Authentication server is set")
+	print("run 'man dhcp-server' to learn more")
+end
+
+-- now we listen for network requests
+-- we loop this forever, then sort out the type of request
+-- we use a global variable so that the controller script can turn off the loop
+minux.debug("dhcp-serv:listening for requests","dhcp")
+_G.dhcpenabled = true
+while _G.dhcpenabled == true do
+	tempid, tempdata = rednet.receive(5)
+-- handle dhcp requests
+	if tempdata == "DHCP-REQ" then
+		minux.debug("dhcp-serv:dhcp-req:"..tempid,"dhcp")
+		rednet.send(tempid, "DHCP-ACK")
+		printstring = "DHCP-ACK ID:"..tempid
+		print(printstring)
+		minux.monitorprint(printstring)
+	elseif tempdata == "AUTH-ID" then
+		minux.debug("dhcp-serv:dhcp-req:"..tempid,"dhcp")
+		rednet.send(tempid, _G.authserver)
+		printstring = "AUTH-REQ ID:"..tempid
+		print(printstring)
+		minux.monitorprint(printstring)
+	elseif tempdata == "DHCP-REG" then
+		minux.debug("dhcp-serv:dhcp-reg:"..tempid,"dhcp")
+		shell.switchTab(shell.openTab("/etc/dhcp-server/handlerequest.sys "..tempid.." "..tempdata))
+	elseif tempdata == "DHCP-UREG" then
+		minux.debug("dhcp-serv:dhcp-ureg:"..tempid,"dhcp")
+		shell.switchTab(shell.openTab("/etc/dhcp-server/handlerequest.sys "..tempid.." "..tempdata))
+	elseif tempdata == "DHCP-LOOKUP" then
+		minux.debug("dhcp-serv:lookup:"..tempid,"dhcp")
+		shell.switchTab(shell.openTab("/etc/dhcp-server/handlerequest.sys "..tempid.." "..tempdata))
+	elseif tempdata == "ping" then
+		netlib.getping(tempid)
+		minux.debug("received ping from:"..tempid, "dhcp")
+	elseif tempdata == "DHCP-LIST" then
+		minux.debug("dhcp-serv:list:"..tempid,"dhcp")
+		shell.switchTab(shell.openTab("/etc/dhcp-server/handlerequest.sys "..tempid.." "..tempdata))
+	end
+end

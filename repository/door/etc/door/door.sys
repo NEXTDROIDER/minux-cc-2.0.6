@@ -1,0 +1,18 @@
+-- door server side script
+-- client side is called 'open'
+args = {...}
+minux.debug("door:starting","door")
+
+-- listen for incomming requests and process them
+keepalive = true
+while keepalive == true do 
+	clientid , data = rednet.receive()
+-- if request received, try to sync	
+	if data == "DOOR-REQ" then
+		minux.debug("door:door-req:"..clientid,"door")
+		shell.run("/etc/door/request.sys "..clientid)
+	elseif data == "ping" then
+		netlib.getping(clientid)
+		print("ping:"..clientid)
+	end
+end

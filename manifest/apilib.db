@@ -1,0 +1,13 @@
+AIF=true
+https://minux.cc/apt/2.0/soft/
+version=1.0
+author=minux-team
+php=false
+[filelist]
+/etc/apilib/surface.sys
+/etc/apilib/palette.sys
+/etc/apilib/cprint
+/etc/apt/alias/apilib.al
+/etc/apilib/apilib
+/bin/welcome.sh
+/gbin/welcome.exe

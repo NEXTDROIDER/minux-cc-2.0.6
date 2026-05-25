@@ -1,0 +1,232 @@
+-- netfolder client api
+function list(server, path)
+    expect(1, server, "string")
+    expect(2, path, "string")
+    dhcp.lookup(server)
+    server = tonumber(_G.lookupid)
+    minux.debug("LS:contacting:"..server,"netfolder")
+    rednet.send(server,"NETFOL-LS")
+    local sreply = netlib.getstring(server,3)
+    if sreply ~= "NF-LS-ACK" then
+        minux.debug("contact failed:E:702","netfolder")
+        return 702
+    end
+    -- prepaire data table, then send it.
+    local tdata = {}
+    tdata[1] = path
+    tdata[2] = _G.login
+    tdata[3] = _G.masterpass
+    local treply = netlib.sendtable(server,tdata)
+    if treply ~= true then
+        minux.debug("LS:E:702:table-nosync","netfolder")
+        return 702
+    end
+    -- await reply list, it will be a string with the status.
+    local sreply = netlib.getstring(server,3)
+    if sreply == "NF:LS:703" then
+        minux.debug("LS:703:access denied","netfolder")
+        return 703
+    elseif sreply == "NF:LS:704" then
+        minux.debug("LS:704:Nofile","netfolder")
+        return 704
+    elseif sreply == "NF:LS:706" then
+        minux.debug("LS:706:NotDir","netfolder")
+        return 706
+    elseif sreply == "NF:LS:ACC" then
+        minux.debug("LS:ACC","netfolder")
+    else
+        minux.debug("NF:LS:702:noreply","netfolder")
+        return 702
+    end
+    -- receive the actual file as a table.
+    local sdata = netlib.gettable(server,3)
+    if sdata == nil or sdata == false then
+        minux.debug("NF:LS:E:702file-sync-fail","netfolder")
+        return 702
+    end
+    minux.debug("NF:LS:done")
+    -- backwards compat.
+    minux.writetable("/temp/netfolder/list.ls",sdata)
+    return sdata
+end
+function delete(server, path)
+    expect(1, server, "string")
+    expect(2, path, "string")
+    -- contact server
+    dhcp.lookup(server)
+    server = tonumber(_G.lookupid)
+    minux.debug("RM:contacting:"..server,"netfolder")
+    rednet.send(server,"NETFOL-DEL")
+    local sreply = netlib.getstring(server,3)
+    if sreply ~= "NF-RM-ACK" then
+        minux.debug("contact failed:E:702","netfolder")
+        return 702
+    end
+    -- now we can send the file in question, we also need to send login data
+    local tdata = {}
+    tdata[1] = path
+    tdata[2] = _G.login
+    tdata[3] = _G.masterpass
+    local treply = netlib.sendtable(server, tdata)
+    if treply == nil or treply == false then
+        minux.debug("RM:table send fail E:702","netfolder")
+        return 702
+    end
+    local lreply = netlib.getstring(server, 3)
+    if lreply == "NF-RM-703" then
+        minux.debug("RM:E:703:Access denied","netfolder")
+        return 703
+    elseif lreply == "NF-RM-704" then
+        minux.debug("3M:E:704:noexist","netfolder")
+        return 704
+    elseif lreply == "NF-RM-ACC" then
+        minux.debug("RM:ACCEPT","netfolder")
+        return true
+    else
+        minux.debug("RM:E:702:noreply","netfolder")
+        return 702
+    end
+end
+-- get a file from nf server
+function getfile(server, serverpath, localpath)
+    expect(1, server, "string")
+    expect(2, serverpath, "string")
+    expect(3, localpath, "string")
+    -- contact server
+    dhcp.lookup(server)
+    server = tonumber(_G.lookupid)
+    minux.debug("contacting:"..server,"netfolder")
+    rednet.send(server,"NETFOL-GET")
+    local sreply = netlib.getstring(server,3)
+    if sreply ~= "NF-GET-ACK" then
+        minux.debug("contact failed:E:704","netfolder")
+        return 704
+    end
+    -- send file request data
+    local tdata = {}
+    tdata[1] = serverpath
+    tdata[2] = _G.login
+    tdata[3] = _G.masterpass
+    local treply = netlib.sendtable(server, tdata)
+    if treply == nil or treply == false then
+        minux.debug("table send fail E:702","netfolder")
+        return 702
+    end
+    --listen for reply
+    treply = netlib.getstring(server,3)
+    if treply == "NETFOLDER-NOEXIST" then
+        minux.debug("E:704:noexist","netfolder")
+        return 704
+    elseif treply == "NETFOLDER-DENIED" then
+        minux.debug("E:703:Denied!","netfolder")
+        return 703
+    elseif treply == "NETFOLDER-ISDIR" then
+        minux.debug("E:706:is a directory","netfolder")
+        return 706
+    elseif treply == "NETFOLDER-SENDFILE" then
+        minux.debug("server:accept-sendfile","netfolder")
+    else
+        minux.debug("table reply fail E:702","netfolder")
+        return 702
+    end
+    -- we get ready for the file
+    local tempfile = netlib.getstring(server, 3)
+    if tempfile == nil or tempfile == false then
+        minux.debug("file send fail E:702","netfolder")
+        return 702
+    end
+    local newfile = fs.open(localpath , "w")
+    newfile.write(tempfile)
+    newfile.close()
+    minux.debug("getfile:File saved:"..localpath,"netfolder")
+    return true
+end
+-- putfile, storing a file on NF server
+function putfile(server, serverpath, localpath)
+    expect(1, server, "string")
+    expect(2, serverpath, "string")
+    expect(3, localpath, "string")
+    -- contact server with put request
+    minux.debug("NF-PF:"..server..":"..serverpath..":"..localpath)
+    dhcp.lookup(server)
+    server = tonumber(_G.lookupid)
+    rednet.send(server,"NETFOL-PUT")
+    local creply = netlib.getstring(server,3)
+    minux.debug("contacting:"..server..":putfile","netfolder")
+    if creply ~= "NETFOLDER-ACK" then
+        minux.debug("putfile:E702:server not found","netfolder")
+        return 702
+    end
+    -- prepaire and transmit request table
+    local dt = {}
+    dt[1] = serverpath
+    dt[2] = _G.login
+    dt[3] = _G.masterpass
+    local treply = netlib.sendtable(server,dt)
+    if treply ~= true then
+        minux.debug("putfile:E702:table sync fail","netfolder")
+        return 702
+    end
+    -- await and process reply
+    local freply = netlib.getstring(server,3)
+    -- if we get denied, we can stop
+    if freply == "NF-703" then
+        minux.debug("putfile:E703:Access denied","netfolder")
+        return 703
+    -- if we get accepted
+    elseif freply == "NF-PF-ACCEPT" then
+        minux.debug("putfile:accept","netfolder")
+        local tempfile = fs.open(localpath, "r")
+        local fdata = tempfile.readAll()
+        tempfile.close()
+        local dreply = netlib.sendstring(server,fdata)
+        if dreply ~= true then
+            minux.debug("putfile:E702:file-sync-fail","netfolder")
+            return 702
+        end
+        minux.debug("putfile:file-sync-succ","netfolder")
+        return true
+    -- if we don't get a reply at all
+    else
+        minux.debug("putfile:E702:laststage-noreply","netfolder")
+        return 702
+    end
+end
+function getfolder(server, serverpath, localpath)
+    expect(1, server, "string")
+    expect(2, serverpath, "string")
+    expect(3, localpath, "string")
+    -- find the server and list the folder
+    minux.debug("GF:U-".._G.login.." S-"..server.." T-"..serverpath,"netfolder")
+    local nflist = netfolder.list(server, serverpath)
+    local nfc = 1
+    -- download each file till list ends.
+    while nflist[nfc] ~= nil do
+        local greply = netfolder.getfile(server,nflist[nfc], localpath.."/"..nflist[nfc])
+        if greply ~= true then
+            minux.debug("GF:file error at line:"..nfs,"netfolder")
+            return 702
+        end
+        nfc = nfc + 1
+    end
+    minux.debug("GF:done","netfolder")
+    return true
+end
+function putfolder(server, serverpath, localpath)
+    expect(1, server, "string")
+    expect(2, serverpath, "string")
+    expect(3, localpath, "string")
+    -- list the folder
+    local fdata = minux.lsr(localpath)
+    -- send the files
+    local fcount = 1
+    while fdata[fcount] ~= nil do
+        local greply = netfolder.putfile(server, serverpath.."/"..fdata[fcount], fdata[fcount])
+        if greply ~= true then
+            minux.debug("PF:file error at line:"..fcount,"netfolder")
+            return 702
+        end
+        fcount = fcount + 1
+    end
+    return true
+end

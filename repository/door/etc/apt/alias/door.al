@@ -1,0 +1,1 @@
+if fs.exists("/bin/doorconfig.sh") then shell.setAlias("doorconfig" , "/bin/doorconfig.sh") end

@@ -1,0 +1,69 @@
+-- config menu, part of main menu but can be called seperate
+
+local configmenuactive = true
+while configmenuactive == true do
+	local title = "Minux Configuration menu"
+	local choices = {}
+	if pocket or turtle then
+		choices = {"return/exit", "startup UI - interface", "welcome screen - config", "autoupdate settings",  "login method - users", "debug mode - logs", "dhcp search","crashhandler","colors"}
+	else
+		choices = {"return/exit", "startup UI - what interface starts on bootup", "welcome screen - display the welcome banner", "autoupdate settings",  "login method - switch user account system","debug mode - logs and verbose mode", "dhcp search on boot","crashhandler - enable or disable crash catcher","system colors - change default display colors"}
+	end
+	local actions = {}
+
+	actions[1] = function()
+	minux.debug("cfgmenu:return/exit" , "minux")
+	configmenuactive = false
+	end
+	actions[2] = function()
+	minux.debug("cfgmenu:startup UI" , "minux")
+	shell.run("/etc/minux-main/menu/startup.sys")
+	end
+	actions[3] = function()
+	minux.debug("cfgmenu:update" , "minux")
+	shell.run("/etc/minux-main/menu/welcomemenu.sys")
+	end	
+	actions[4] = function()
+	minux.debug("cfgmenu:update" , "minux")
+	shell.run("/etc/minux-main/menu/update.sys")
+	end	
+	actions[5] = function()
+	minux.debug("cfgmenu:login" , "minux")
+	shell.run("/etc/minux-main/menu/login.sys")
+	end
+	actions[6] = function()
+	minux.debug("cfgmenu:debug" , "minux")
+	shell.run("/etc/minux-main/menu/debug.sys")
+	end
+	actions[7] = function()
+	minux.debug("cfgmenu:network" , "minux")
+	shell.run("/etc/minux-main/menu/network.sys")
+	end
+	actions[8] = function()
+		minux.debug("cfgmenu:crashhandler" , "minux")
+		local crashmenu = true
+		while crashmenu == true do
+			local cactions = {}
+			local cchoices = {}
+			local ctitle = "Minux crash handler setting:"..minux.getconfig("crashhandler")
+			cchoices = {"return/exit","enabled","disabled"}
+			cactions[1] = function()
+			crashmenu = false
+			end
+			cactions[2] = function()
+			minux.debug("crshcfg:enabled" , "minux")
+			minux.setconfig("crashhandler", "enabled")
+			end
+			cactions[3] = function()
+			minux.debug("crshcfg:disabled" , "minux")
+			minux.setconfig("crashhandler", "disabled")
+			end
+			menu.menuOptions(ctitle,cchoices,cactions)
+		end
+	end
+	actions[9] = function()
+		minux.debug("cfgmenu:colors" , "minux")
+		shell.run("/etc/minux-main/menu/bashcolors.sys")
+	end
+	menu.menuOptions(title, choices, actions)
+end

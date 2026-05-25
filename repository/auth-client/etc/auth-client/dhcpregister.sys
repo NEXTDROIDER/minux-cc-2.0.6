@@ -1,0 +1,46 @@
+-- dhcp register request client side
+args = {...}
+local systemname = args[1]
+minux.debug("register:starting" , "auth")
+
+-- catch invalid data
+if systemname == nil or systemname == "" then print("no system name") minux.debug("register:E:301:invalid input" , "auth") return 0 end
+if _G.validlogin == nil or _G.login == nil or _G.masterpass == nil then print("Not logged in") minux.debug("register:E:300:denied" , "auth") return 0 end
+minux.debug("register:name:"..systemname , "auth")
+
+-- send request and listen for response
+minux.debug("register:contacting dhcp" , "auth")
+rednet.send(_G.server , "DHCP-REG")
+tempid, tempdata = rednet.receive(1)
+if tempdata ~= "DHCP-REG-ACK" then print("reg:dhcp busy or not available") minux.debug("register:E:306:dhcp-noreply" , "auth") return 0 end
+
+-- now send data and let it bounce back for verification
+minux.debug("register:sending data" , "auth")
+rednet.send(_G.server , _G.login)
+rednet.send(_G.server , _G.masterpass)
+rednet.send(_G.server , systemname)
+tempid, templogin = rednet.receive(1)
+tempid, temppass = rednet.receive(1)
+tempid, tempname = rednet.receive(1)
+minux.debug("register:verify" , "auth")
+if tempname ~= systemname or temppass ~= _G.masterpass or templogin ~= _G.login then
+	minux.debug("register:E:302:sync-fail" , "auth")
+	print("data sync failed, aborting")
+	rednet.send(_G.server , "SYNC-FAIL")
+	return 0
+end
+minux.debug("register:data-sync" , "auth")
+rednet.send(_G.server, "SYNC-TRUE")
+
+-- await response
+tempid, tempdata = rednet.receive(3)
+if tempdata == "REG-ACCEPT" then print("system registered as "..systemname) minux.debug("register:granted" , "auth")
+elseif tempdata == "REG-EXIST" then print("system name already taken") minux.debug("register:taken" , "auth")
+elseif tempdata == "REG-ALERT" then 
+	minux.debug("register:E:303:denied!" , "auth")
+	print ("User data invalid, aborting session")
+	_G.validlogin = nil
+	_G.admin = nil
+	_G.login = nil
+	_G.masterpassword = nil
+else print("No response, check dhcp server output") minux.debug("register:E:306" , "auth") end

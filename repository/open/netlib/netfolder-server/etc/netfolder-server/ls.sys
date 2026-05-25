@@ -1,0 +1,68 @@
+-- ls netfolder server side
+
+args = {...}
+clientid = tonumber(args[1])
+
+-- catch bad input
+if clientid == nil or clientid == "" then print("ls:Invalid input") return 0 end
+
+-- listen to the data, bounce, then wait for verify
+tempid, temppath = rednet.receive(1)
+tempid, templogin = rednet.receive(1)
+tempid, temppass = rednet.receive(1)
+rednet.send(clientid , temppath)
+rednet.send(clientid , templogin)
+rednet.send(clientid , temppass)
+tempid, data = rednet.receive(1)
+if data ~= "SYNC-SUCC" then print("Sync failed ID:"..clientid) return 0 end
+
+-- verify user data with AUTH
+-- we try to log in as the user
+shell.run("/etc/minux-main/sys/nlogin.sys "..templogin.." "..temppass)
+if _G.validlogin ~= true then
+	print("Access denied:U-"..templogin.." ID-"..clientid)
+	rednet.send(clientid , "NETFOLDER-DENIED")
+	return 0
+end
+
+-- we check if the file exists
+if fs.exists(_G.netfolderroot.."/"..templogin.."/"..temppath) == false then
+	print("404:U-"..templogin.." F-"..temppath)
+	rednet.send(clientid , "NETFOLDER-NOEXIST")
+	return 0
+else
+	if fs.isDir(_G.netfolderroot.."/"..templogin.."/"..temppath) == false then
+		print("403:U-"..templogin.." F-"..temppath)
+		rednet.send(clientid , "NETFOLDER-NODIR")
+		return 0
+	end
+	rednet.send(clientid, "NETFOLDER-LS")
+	print("LS U-"..templogin.." F-"..temppath)
+end
+
+-- we list the folder
+shell.run("/etc/minux-main/ls/ls.sys ".._G.netfolderroot.."/"..templogin.."/"..temppath.."/")
+
+-- manipulate the data
+totalstringcount = string.len(_G.netfolderroot) + string.len(templogin)
+totalstringcount = totalstringcount +3
+stringcount = 1
+newlist = fs.open("/temp/netfolder/ls.tmp" ,"w")
+filelist = fs.open("/temp/ls/files.ls" , "r")
+line = filelist.readLine()
+while line ~= nil do
+-- where does string end?
+	stringcount = string.len(line)
+-- now we remove
+	newline = line:sub(totalstringcount , stringcount)
+	newlist.writeLine(newline)
+	line = filelist.readLine()
+end
+newlist.close()
+filelist.close()
+
+-- read and send
+tempfile = fs.open("/temp/netfolder/ls.tmp" , "r")
+data = tempfile.readAll()
+tempfile.close()
+rednet.send(clientid, data)

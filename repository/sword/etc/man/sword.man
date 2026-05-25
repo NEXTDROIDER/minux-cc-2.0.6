@@ -1,0 +1,8 @@
+shrekword, text/file editor program
+executable location: '/bin/sword.sh'  alias:'sword'
+shrekword is part of the 'sword' app
+
+this is a 3rd party app created by "ShreksHellraiser" on CC forums
+https://pinestore.cc/projects/114/shrekword
+
+an advanced GUI text/file editor based on Word

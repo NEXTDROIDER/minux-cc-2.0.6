@@ -1,0 +1,793 @@
+-- auth server functions, first we do internal functions used by the server itself
+-- check if user exists, internal function
+function readuser(username, password)
+    expect(1,username, "string")
+    expect(2,password, "string")
+    if fs.exists("/usr/auth-server/userdata/"..username..".db") == false then
+        minux.debug("readuser:E:404:noexist","auth")
+        return "noexist"
+    else
+        minux.debug("readuser:reading:"..username,"auth")
+        minux.debug("readuser:U:"..username,"auth")
+        local userfile = fs.open("/usr/auth-server/userdata/"..username..".db","r")
+        local line = "start"
+        local isadmin = false
+        local password2 = false
+        local acceptlogin = false
+        while line ~= nil do
+            line = userfile.readLine()
+            if line == "ADM" then isadmin = true
+            elseif line == "PSW" then
+                password2 = userfile.readLine()
+                if _G.authcrypt == true then
+                    password2 = minux.decrypt(password2,_G.authkey)
+                end
+            end
+        end
+        userfile.close()
+        minux.debug("readuser:processing","auth")
+        if password == password2 then acceptlogin = true minux.debug("readuser:passmatch","auth") end
+        if isadmin == true then minux.debug("readuser:isadmin","auth") end
+        if acceptlogin == true and isadmin == true then return "admin"
+        elseif acceptlogin == true then return "accept"
+        else return "denied"
+        end
+    end
+end
+
+-- add a user, internal function
+function makeuser(username, password, admin)
+    expect(1,username,"string")
+    expect(2,password,"string")
+    expect(3,admin,"string","nil")
+    minux.debug("adduser:U-"..username,"auth")
+    if fs.exists("/usr/auth-server/userdata/"..username..".db") then
+        printstring = "User already exists"
+        print(printstring)
+        minux.debug("adduser:exists","auth")
+        minux.monitorprint(printstring)
+        return false
+    else
+        file = fs.open("/usr/auth-server/userdata/"..username..".db","w")
+        file.writeLine("PSW")
+        if _G.authcrypt == true then
+            password = minux.encrypt(password,_G.authkey)
+        end
+        file.writeLine(password)
+        if admin == "true" then file.writeLine("ADM") end
+        file.close()
+        minux.debug("adduser:created","auth")
+        printstring = "user created"
+        print(printstring)
+        minux.monitorprint(printstring)
+    end
+end
+
+-- remove a user, internal function
+function deluser(username)
+    expect(1,username,"string")
+    minux.debug("deluser:starting","auth")
+    minux.debug("deluser:U-"..username,"auth")
+    if fs.exists("/usr/auth-server/userdata/"..username..".db") ~= true then
+        printstring = "User does not exists"
+        minux.debug("deluser:noexist","auth")
+        print(printstring)
+        minux.monitorprint(printstring)
+        return false
+    else
+        minux.debug("deluser:accept","auth")
+        fs.delete("/usr/auth-server/userdata/"..username..".db")
+        printstring = "user deleted"
+        print(printstring)
+        minux.monitorprint(printstring)
+    end
+end
+
+-- change password, internal function
+function psw(username, password)
+    expect(1,username,"string")
+    expect(2,password,"string")
+    if fs.exists("/usr/auth-server/userdata/"..username..".db") == false then
+        minux.debug("setpass:Noexist","auth")
+        local printstring = "setpass:User does not exists"
+        print(printstring)
+        minux.monitorprint(printstring)
+        return false
+    else
+        minux.debug("psw:accept","auth")
+        local file = fs.open("/usr/auth-server/userdata/"..username..".db","r")
+        local line = file.readLine()
+        local isadmin = false
+        while line ~= nil do
+            if line == "ADM" then isadmin = true end
+            line = file.readLine()
+        end
+        file.close()
+        local file = fs.open("/usr/auth-server/userdata/"..username..".db","w")
+        file.writeLine("PSW")
+        if _G.authcrypt == true then
+            password = minux.encrypt(password,_G.authkey)
+        end
+        file.writeLine(password)
+        if isadmin == true then file.writeLine("ADM") end
+        file.close()
+        local printstring = "setpass:user modified"
+        print(printstring)
+        minux.monitorprint(printstring)
+    end
+end
+
+-- read owner file, internal function
+function ownerfile(system)
+    expect(1,system,"string")
+    local ownerdata = {}
+    ownerdata[1] = false
+    ownerdata[2] = false
+    ownerdata[3] = false
+    if fs.exists("/usr/auth-server/ownerdata/"..system..".db") == false then
+        print("READOWNERFILE:NOEXIST")
+        return ownerdata
+    end
+    local line = "start"
+    local tempfile = fs.open("/usr/auth-server/ownerdata/"..system..".db","r")
+    while line ~= nil do
+        line = tempfile.readLine()
+        if line == "OWN" then
+            ownerdata[1] = tempfile.readLine()
+        elseif line == "GRP" then
+            ownerdata[2] = tempfile.readLine()
+        elseif line == "NAME" then
+            ownerdata[3] = tempfile.readLine()
+        end
+    end
+    tempfile.close()
+    return ownerdata
+end
+
+function readgroup(username, groupname)
+    expect(1,username, "string")
+    expect(2,groupname,"string")
+    minux.debug("readgroup:starting","auth")
+    if fs.exists("/usr/auth-server/groupdata/"..groupname..".db") == false then
+        minux.debug("readgroup:E:404:groupnoexist","auth")
+        printstring = "READGROUP:NOEXIST:GRP-"..groupname
+        print(printstring)
+        minux.monitorprint(printstring)
+        return false
+    end
+    local line = "start"
+    minux.debug("readgroup:reading:"..groupname,"auth")
+    local tempfile = fs.open("/usr/auth-server/groupdata/"..groupname..".db","r")
+    while line ~= nil do
+        line = tempfile.readLine()
+        if line == username then
+            printstring = "READGROUP:U-"..username.." GRP-"..groupname.." R-TRUE"
+            print(printstring)
+            minux.debug("readgroup:ismember","auth")
+            minux.monitorprint(printstring)
+            tempfile.close()
+            return true
+        end
+    end
+    printstring = "READGROUP:U-"..username.." GRP-"..groupname.." R-FALSE"
+    print(printstring)
+    minux.debug("readgroup:nomember","auth")
+    minux.monitorprint(printstring)
+    tempfile.close()
+    return false
+end
+
+-- now we have response functions for network communication
+
+-- login function
+function login(clientid)
+    expect(1,clientid, "number")
+    local userdata = false
+    minux.debug("login:starting","auth")
+    minux.debug("login:contacting client","auth")
+    rednet.send(clientid, "AUTH-ACK")
+    local data = {}
+	data = netlib.gettable(clientid, 3)
+	if data[2] == nil then
+		printstring = "LOGIN:SYNC:FAIL:ID-"..clientid
+		print(printstring)
+		minux.debug("login:E:402:nosync:nil","auth")
+		minux.monitorprint(printstring)
+		return false
+    elseif data == false then
+		printstring = "LOGIN:SYNC:FAIL:ID-"..clientid
+		print(printstring)
+		minux.debug("login:E:402:nosync:false","auth")
+		minux.monitorprint(printstring)
+		return false
+    else
+		userdata = true
+		printstring = "LOGIN:"..data[1].." ID-"..clientid
+		print(printstring)
+		minux.debug("login:data sync","auth")
+		minux.monitorprint(printstring)
+	end
+
+    if userdata == true then
+        returnvalue = readuser(data[1],data[2])
+        if returnvalue ~= nil then
+            netlib.sendstring(clientid, returnvalue)
+            minux.debug("reply:"..returnvalue)
+            return true
+        else return false
+        end
+    end
+end
+
+-- add users
+function useradd(clientid)
+    expect(1,clientid, "number")
+    minux.debug("useradd:receiving data:ID-"..clientid,"auth")
+    rednet.send(clientid, "AUTH-ACK")
+    local data = {}
+    data = netlib.gettable(clientid, 2)
+    if data[5] == nil then
+        printstring = "ADDUSER:SYNC:FAIL:ID-"..clientid
+        print(printstring)
+        minux.debug("useradd:E:402:nil","auth")
+        minux.monitorprint(printstring)
+        return false
+    elseif data == false then
+        printstring = "ADDUSER:SYNC:FAIL:ID-"..clientid
+        print(printstring)
+        minux.debug("useradd:E:402:false","auth")
+        minux.monitorprint(printstring)
+    end
+    local login = data[1]
+    local pass = data[2]
+    local username = data[3]
+    local userpass = data[4]
+    local makeadmin = data[5]
+    minux.debug("useradd:U-"..login.." T-"..username,"auth")
+    if makeadmin == "ADM" then
+        minux.monitorprint("adminadd:U-"..login.." T-"..username,"auth")
+    else
+        minux.monitorprint("useradd:U-"..login.." T-"..username,"auth")
+    end
+    minux.debug("useradd:admincheck","auth")
+    local isadmin = authserv.readuser(login,pass)
+    if isadmin ~= "admin" then
+        minux.debug("useradd:E:400:Access denied","auth")
+        printstring = "ADDUSER:DENIED:USER-"..login.." ID-"..clientid.." TARGET-"..username
+        print(printstring)
+        minux.monitorprint(printstring)
+        netlib.sendstring(clientid, "AUTH-DENIED")
+        return false
+    end
+    if fs.exists("/usr/auth-server/userdata/"..username..".db") then
+        minux.debug("useradd:Exists","auth")
+        printstring = "ADDUSER:EXIST:USER-"..login.." ID-"..clientid.." TARGET-"..username
+        print(printstring)
+        minux.monitorprint(printstring)
+        netlib.sendstring(clientid, "AUTH-EXIST")
+        return false
+    elseif makeadmin == "ADM" then
+        minux.debug("useradd:Accept:Admin","auth")
+        printstring = "ADDADMIN:ACCEPT:ADMIN-"..login.." ID-"..clientid.." TARGET-"..username
+        print(printstring)
+        minux.monitorprint(printstring)
+        netlib.sendstring(clientid, "AUTH-GRANTED")
+        makeuser(username,userpass,"true")
+    else
+        minux.debug("useradd:Accept:user","auth")
+        printstring = "ADDUSER:ACCEPT:USER-"..login.." ID-"..clientid.." TARGET-"..username
+        print(printstring)
+        minux.monitorprint(printstring)
+        netlib.sendstring(clientid, "AUTH-GRANTED")
+        makeuser(username,userpass)
+    end
+    return true
+end
+
+-- delete users, remote function
+function userdel(clientid)
+    expect(1,clientid, "number")
+    minux.debug("userdel:Starting","auth")
+    minux.debug("userdel:receiving data","auth")
+    rednet.send(clientid, "AUTH-USR-SYNC")
+    local data = {}
+    data = netlib.gettable(clientid)
+    if data[3] == nil then
+        minux.debug("userdel:E:402:sync-fail:nil","auth")
+        local printstring = "DELUSER:SYNC:FAIL:ID-"..clientid
+        print(printstring)
+        minux.monitorprint(printstring)
+        return false
+    elseif data == false then
+        minux.debug("userdel:E:402:sync-fail:false","auth")
+        local printstring = "DELUSER:SYNC:FAIL:ID-"..clientid
+        print(printstring)
+        minux.monitorprint(printstring)
+        return false
+    end
+    local login = data[1]
+    local pass = data[2]
+    local username = data[3]
+    minux.debug("userdel:U-"..login.." T-"..username,"auth")
+    minux.debug("userdel:admincheck","auth")
+    local isadmin = authserv.readuser(login,pass)
+    if isadmin ~= "admin" then
+        minux.debug("userdel:E:400:Denied","auth")
+        local printstring = "DELUSER:DENIED:USER-"..login.." ID-"..clientid.." TARGET-"..username
+        print(printstring)
+        minux.monitorprint(printstring)
+        netlib.sendstring(clientid, "AUTH-DENIED")
+        return false
+    end
+    if fs.exists("/usr/auth-server/userdata/"..username..".db") then
+        minux.debug("userdel:Accept","auth")
+        authserv.deluser(username)
+        local printstring = "DELUSER:ACCEPT:USER-"..login.." ID-"..clientid.." TARGET-"..username
+        print(printstring)
+        minux.monitorprint(printstring)
+        netlib.sendstring(clientid, "AUTH-DEL")
+        return true
+    else
+        minux.debug("userdel:noexist","auth")
+        local printstring = "DELUSER:NOEXIST:USER-"..login.." ID-"..clientid.." TARGET-"..username
+        print(printstring)
+        minux.monitorprint(printstring)
+        netlib.sendstring(clientid, "AUTH-NOEXIST")
+        return false
+    end
+end
+
+-- reset password, network function
+function setpass(clientid)
+    expect(1,clientid,"number")
+    minux.debug("setpass:receiving data","auth")
+    rednet.send(clientid, "AUTH-USR-SYNC")
+    local data = {}
+    data = netlib.gettable(clientid, 3)
+    if data[4] == nil then
+        printstring = "PASSWD:SYNC:NIL:ID-"..clientid
+        print(printstring)
+        minux.monitorprint(printstring)
+        return false
+    elseif data == false then
+        printstring = "PASSWD:SYNC:FALSE:ID-"..clientid
+        print(printstring)
+        minux.monitorprint(printstring)
+        return false
+    end
+    login = data[1]
+    pass = data[2]
+    username = data[3]
+    userpass = data[4]
+    minux.debug("resetps:usercheck:"..login,"auth")
+    local accept = false
+    local isadmin = authserv.readuser(login,pass)
+    if isadmin == "admin" then accept = true
+    elseif isadmin == "accept" then accept = true
+    else
+        minux.debug("resetps:denied","auth")
+        printstring = "PASSWD:DENIED:USER-"..login.."ID-"..clientid.."TARGET-"..username
+        print(printstring)
+        minux.monitorprint(printstring)
+        netlib.sendstring(clientid, "AUTH-DENIED")
+        return false
+    end
+    if accept == true then
+        if fs.exists("/usr/auth-server/userdata/"..username..".db") == false then
+            minux.debug("resetps:nouser","auth")
+            printstring = "PASSWD:NOEXIST:USER-"..login.." ID-"..clientid.." TARGET-"..username
+            print(printstring)
+            minux.monitorprint(printstring)
+            netlib.sendstring(clientid, "AUTH-NOEXIST")
+        else
+            minux.debug("resetps:accept:T-"..username,"auth")
+            printstring = "PASSWD:ACCEPT:USER-"..login.." ID-"..clientid.." TARGET-"..username
+            print(printstring)
+            minux.monitorprint(printstring)
+            rednet.send(clientid, "AUTH-GRANTED")
+            authserv.psw(username, userpass)
+        end
+    end
+end
+
+-- check system ownership, network function
+function readowner(clientid)
+    expect(1,clientid,"number")
+    minux.debug("readowner:starting","auth")
+    rednet.send(clientid , "AUTH-OWN-ACK")
+    local tempsystem = netlib.getstring(clientid, 3)
+    if tempsystem == nil or tempsystem == false then
+        local printstring = "READOWNER:SYNC:FAIL:ID-"..clientid
+        print(printstring)
+        minux.monitorprint(printstring)
+        return false
+    end
+    local reply = {}
+    reply = authserv.ownerfile(tempsystem)
+    if reply[1] == false then
+        printstring = "READOWNER:NOEXIST"
+        print(printstring)
+        minux.monitorprint(printstring)
+        netlib.sendstring(clientid, "AUTH-OWN-NOEXIST")
+        return false
+    end
+    netlib.sendtable(clientid, reply)
+    printstring = "readowner:sent"
+    print(printstring)
+    minux.monitorprint(printstring)
+end
+
+-- set system owner, network function
+function setowner(clientid)
+    expect(1,clientid,"number")
+    minux.debug("setowner:starting","auth")
+    rednet.send(clientid , "AUTH-OWN-ACK")
+    minux.debug("setowner:receiving data","auth")
+    local data = {}
+    data = netlib.gettable(clientid, 3)
+    minux.debug("setowner:verify","auth")
+    if data == false then
+        printstring = "SETOWNER:SYNC:FAIL:ID-"..clientid
+        print(printstring)
+        minux.monitorprint(printstring)
+        return false
+    end
+    local tempid = data[1]
+    local tempname = data[2]
+    local templogin = data[3]
+    local temppass = data[4]
+    local tempgroup = data[5]
+    minux.debug("setowner:U-"..templogin.." T-"..tempid.." N-"..tempname,"auth")
+    minux.debug("setowner:checklogin","auth")
+    local isvalid = authserv.readuser(templogin, temppass)
+    if isvalid ~= "admin" and isvalid ~= "accept" then
+        minux.debug("setowner:E:403:Access denied","auth")
+        printstring = "SETOWNER:DENIED:SETOWN:ID-"..clientid.." USER-"..templogin
+        print(printstring)
+        minux.monitorprint(printstring)
+        netlib.sendstring(clientid, "AUTH-OWN-DENIED")
+        return false
+    end
+    minux.debug("setowner:reading owner file","auth")
+    local reply = authserv.ownerfile(tempid)
+    if reply[1] ~= false then
+        minux.debug("setowner:exist","auth")
+        printstring = "SETOWNER:EXISTS"
+        print(printstring)
+        minux.monitorprint(printstring)
+        netlib.sendstring(clientid, "AUTH-OWN-EXIST")
+        return false
+    end
+    minux.debug("setowner:accept","auth")
+    printstring = "SETOWNER:ACCEPT:ID-"..clientid.." USER-"..templogin
+    print(printstring)
+    minux.monitorprint(printstring)
+    netlib.sendstring(clientid, "AUTH-OWN-ACCEPT")
+    local tempfile = fs.open("/usr/auth-server/ownerdata/"..tempid..".db","w")
+    tempfile.writeLine("OWN")
+    tempfile.writeLine(templogin)
+    if tempgroup ~= nil and tempgroup ~= "" then
+        tempfile.writeLine("GRP")
+        tempfile.writeLine(tempgroup)
+    end
+    tempfile.writeLine("NAME")
+    tempfile.writeLine(tempname)
+    tempfile.close()
+end
+
+function delowner(clientid)
+    expect(1,clientid,"number")
+    minux.debug("delowner:contacting client","auth")
+    rednet.send(clientid , "AUTH-OWN-ACK")
+    local data = {}
+    data = netlib.gettable(clientid, 3)
+    minux.debug("delowner:verify","auth")
+    if data == false then
+        minux.debug("delowner:E:402:sync fail","auth")
+        printstring = "DELOWNER:SYNC:FAIL:ID-"..clientid
+        print(printstring)
+        minux.monitorprint(printstring)
+        return false
+    end
+    local tempid = data[1]
+    local templogin = data[2]
+    local temppass = data[3]
+    local isvalid = authserv.readuser(templogin, temppass)
+    if isvalid ~= "admin" and isvalid ~= "accept" then
+        printstring = "DELOWNER:DENIED:DELOWN:ID-"..clientid.." USER-"..templogin
+        print(printstring)
+        minux.monitorprint(printstring)
+        netlib.sendstring(clientid, "AUTH-OWN-DENIED")
+        return false
+    end
+    local reply = authserv.ownerfile(tempid)
+    if isvalid ~= "admin" and reply[1] ~= templogin then
+        printstring = "DELOWNER:DENIED:DELOWN:ID-"..clientid.." USER-"..templogin
+        print(printstring)
+        minux.monitorprint(printstring)
+        netlib.sendstring(clientid, "AUTH-OWN-DENIED")
+        minux.debug("delowner:E:400:noadmin","auth")
+        return false
+    elseif reply[1] == false then
+        printstring = "DELOWNER:NOEXISTS"
+        print(printstring)
+        minux.monitorprint(printstring)
+        netlib.sendstring(clientid, "AUTH-OWN-NOEXIST")
+        minux.debug("delowner:noexist","auth")
+        return false
+    end
+    printstring = "DELOWNER:ACCEPT:ID-"..clientid.." USER-"..templogin
+    print(printstring)
+    minux.monitorprint(printstring)
+    netlib.sendstring(clientid, "AUTH-OWN-ACCEPT")
+    fs.delete("/usr/auth-server/ownerdata/"..tempid..".db")
+    minux.debug("delowner:accept","auth")
+end
+
+function checkgroup(clientid)
+    expect(1,clientid, "number")
+    minux.debug("groupcheck:starting","auth")
+    rednet.send(clientid, "AUTH-GRP-ACK")
+    minux.debug("groupcheck:listening for data","auth")
+    local data = {}
+    data = netlib.gettable(clientid, 3)
+    minux.debug("groupcheck:verify","auth")
+    if data == false then
+        minux.debug("groupcheck:E:402:sync fail","auth")
+        printstring = "AUTH:GRP:SYNC:FAIL:ID-"..clientid
+        print(printstring)
+        minux.monitorprint(printstring)
+        return false
+    end
+    local groupname = data[1]
+    local username = data[2]
+    minux.debug("groupcheck:U-"..username.." G-"..groupname,"auth")
+    minux.debug("groupcheck:checking","auth")
+    print("READGRP:ID-"..clientid.." U-"..username.." G-"..groupname)
+    local status = authserv.readgroup(username, groupname)
+    minux.debug("groupcheck:done","auth")
+    rednet.send(clientid, status)
+end
+
+function makegroup(clientid)
+    expect(1,clientid,"number")
+    rednet.send(clientid, "AUTH-GRP-ACK")
+    minux.debug("makegroup:listening for data","auth")
+    local data = {}
+    data = netlib.gettable(clientid, 3)
+    minux.debug("makegroup:verify","auth")
+    if data == false then
+        printstring = "AUTH:GRPMK:SYNC:FAIL:ID-"..clientid
+        print(printstring)
+        minux.debug("makegroup:E:402-sync fail","auth")
+        minux.monitorprint(printstring)
+        return false
+    end
+    local tempgroupname = data[1]
+    local templogin = data[2]
+    local temppass = data[3]
+    minux.debug("makegroup:G-"..tempgroupname.." U-"..templogin,"auth")
+    minux.debug("makegroup:usercheck","auth")
+    local isvalid = authserv.readuser(templogin, temppass)
+    if isvalid ~= "admin" and isvalid ~= "accept" then
+        minux.debug("makegroup:E:403:denied!","auth")
+        printstring = "GRPMK:DENIED:ID-"..clientid.." U-"..templogin.." G-"..tempgroupname
+        print(printstring)
+        minux.monitorprint(printstring)
+        netlib.sendstring(clientid, "AUTH-GRP-DENIED")
+        return false
+    end
+    if fs.exists("/usr/auth-server/groupdata/"..tempgroupname..".db") then
+        netlib.sendstring(clientid, "AUTH-GRP-EXIST")
+        printstring = "AUTH:MKGRP:EXITST:GRP-"..tempgroupname.." U-"..templogin
+        print(printstring)
+        minux.debug("makegroup:exists","auth")
+        minux.printstring(printstring)
+        return false
+    end
+    local tempfile = fs.open("/usr/auth-server/groupdata/"..tempgroupname..".db","w")
+    tempfile.writeLine("MK")
+    tempfile.writeLine(templogin)
+    tempfile.close()
+    netlib.sendstring(clientid, "AUTH-GRP-ACCEPT")
+    printstring = "AUTH:MKGRP:TRUE:GRP-"..tempgroupname.." U-"..templogin
+    print(printstring)
+    minux.debug("makegroup:accept","auth")
+    minux.monitorprint(printstring)
+end
+
+function delgroup(clientid)
+    expect(1,clientid, "number")
+    rednet.send(clientid, "AUTH-GRP-ACK")
+    local data = netlib.gettable(clientid, 3)
+    minux.debug("delgroup:verify","auth")
+    if data == false then
+        printstring = "AUTH:GRPDL:SYNC:FAIL:ID-"..clientid
+        print(printstring)
+        minux.debug("delgroup:E:402:nosync","auth")
+        minux.monitorprint(printstring)
+        return false
+    end
+    local tempgroupname = data[1]
+    local templogin = data[2]
+    local temppass = data[3]
+    minux.debug("delgroup:G-"..tempgroupname,"auth")
+    local isvalid = authserv.readuser(templogin, temppass)
+    if isvalid ~= "admin" and isvalid ~= "accept" then
+        minux.debug("delgroup:E:403:U-"..templogin.." ID-"..clientid,"auth")
+        printstring = "GRPDEL:DENIED:ID-"..clientid.." U-"..templogin.." G-"..tempgroupname
+        print(printstring)
+        minux.monitorprint(printstring)
+        netlib.sendstring(clientid, "AUTH-GRP-DENIED")
+        return false
+    end
+    if fs.exists("/usr/auth-server/groupdata/"..tempgroupname..".db") == false then
+        minux.debug("delgroup:exists","auth")
+        netlib.sendstring(clientid, "AUTH-GRP-NOEXIST")
+        printstring = "AUTH:MKGRP:EXITST:GRP-"..tempgroupname.." U-"..templogin
+        print(printstring)
+        minux.monitorprint(printstring)
+        return false
+    end
+    minux.debug("delgroup:checking owner","auth")
+    local line = "start"
+    local maker = false
+    local tempfile = fs.open("/usr/auth-server/groupdata/"..tempgroupname..".db","r")
+    while line ~= nil do
+        line = tempfile.readLine()
+        if line == "MK" then maker = tempfile.readLine() end
+    end
+    tempfile.close()
+    if isvalid ~= "admin" and maker ~= templogin then
+        netlib.sendstring(clientid, "AUTH-GRP-DENIED")
+        printstring = "AUTH:DELGRP:FALSE:GRP-"..tempgroupname.." U-"..templogin
+        print(printstring)
+        minux.debug("delgroup:E:400:denied","auth")
+        minux.monitorprint(printstring)
+        return false
+    end
+    minux.debug("delgroup:accept","auth")
+    fs.delete("/usr/auth-server/groupdata/"..tempgroupname..".db")
+    netlib.sendstring(clientid, "AUTH-GRP-ACCEPT")
+    printstring = "AUTH:DELGRP:TRUE:GRP-"..tempgroupname.." U-"..templogin
+    print(printstring)
+    minux.monitorprint(printstring)
+    return true
+end
+
+function groupjoin(clientid)
+    expect(1,clientid, "number")
+    rednet.send(clientid, "AUTH-GRP-ACK")
+    minux.debug("groupjoin:listening for data","auth")
+    local data = netlib.gettable(clientid, 3)
+    minux.debug("groupjoin:verify","auth")
+    if data == false then
+        printstring = "AUTH:GRPUA:SYNC:FAIL:ID-"..clientid
+        print(printstring)
+        minux.debug("groupjoin:E:402:sync fail","auth")
+        minux.monitorprint(printstring)
+        return false
+    end
+    local tempgroupname = data[1]
+    local tempusername = data[2]
+    local templogin = data[3]
+    local temppass = data[4]
+	printstring = "GRPUA:DEBUG:ID-"..clientid.." U-"..templogin.." G-"..tempgroupname
+	minux.debug(printstring, "auth")
+	minux.monitorprint(printstring)
+    local isvalid = authserv.readuser(templogin, temppass)
+    if isvalid ~= "admin" and isvalid ~= "accept" then
+        minux.debug("groupjoin:E:403:denied","auth")
+        printstring = "GRPUA:DENIED:ID-"..clientid.." U-"..templogin.." G-"..tempgroupname
+        print(printstring)
+        minux.debug("groupjoin:E:403:U-"..templogin.." ID-"..clientid,"auth")
+        minux.monitorprint(printstring)
+        netlib.sendstring(clientid, "AUTH-GRP-DENIED")
+        return false
+    end
+    if fs.exists("/usr/auth-server/userdata/"..tempusername..".db") == false then
+        minux.debug("groupjoin:usernoexist","auth")
+        netlib.sendstring(clientid, "AUTH-GRP-UNOEXIST")
+        printstring = "AUTH:GRPUA:UEXITST:GRP-"..tempgroupname.." U-"..templogin
+        print(printstring)
+        minux.monitorprint(printstring)
+        return false
+    elseif fs.exists("/usr/auth-server/groupdata/"..tempgroupname..".db") == false then
+        minux.debug("groupjoin:groupnoexist","auth")
+        netlib.sendstring(clientid, "AUTH-GRP-NOEXIST")
+        printstring = "AUTH:GRPUA:NOEXITST:GRP-"..tempgroupname.." U-"..templogin
+        print(printstring)
+        minux.monitorprint(printstring)
+        return false
+    end
+    local line = "start"
+    local maker = false
+    local tempfile = fs.open("/usr/auth-server/groupdata/"..tempgroupname..".db","r")
+    while line ~= nil do
+        line = tempfile.readLine()
+        if line == "MK" then maker = tempfile.readLine() end
+    end
+    tempfile.close()
+    if isvalid ~= "admin" and maker ~= templogin then
+        minux.debug("groupjoin:E:400:denied","auth")
+        netlib.sendstring(clientid, "AUTH-GRP-NOACCEPT")
+        printstring = "AUTH:GRPUA:FALSE:GRP-"..tempgroupname.." U-"..templogin
+        print(printstring)
+        minux.monitorprint(printstring)
+        return false
+    end
+    minux.debug("groupjoin:accept","auth")
+    minux.insertline("/usr/auth-server/groupdata/"..tempgroupname..".db", tempusername)
+    netlib.sendstring(clientid, "AUTH-GRP-ACCEPT")
+    printstring = "AUTH:GRPUA:TRUE:GRP-"..tempgroupname.." U-"..templogin
+    print(printstring)
+    minux.monitorprint(printstring)
+    return true
+end
+
+function groupleave(clientid)
+    expect(1,clientid, "number")
+    local allowed = false
+    minux.debug("groupleave:starting","auth")
+    rednet.send(clientid, "AUTH-GRP-ACK")
+    minux.debug("groupleave:listening for data","auth")
+    local data = netlib.gettable(clientid, 3)
+    tempgroupname = data[1]
+    tempusername = data[2]
+    templogin = data[3]
+    temppass = data[4]
+    minux.debug("groupleave:verify","auth")
+    if data == false then
+        minux.debug("groupleave:E:402:sync fail","auth")
+        printstring = "AUTH:GRPUD:SYNC:FAIL:ID-"..clientid
+        print(printstring)
+        minux.monitorprint(printstring)
+        return false
+    end
+    local isvalid = authserv.readuser(templogin, temppass)
+    if isvalid ~= "admin" and isvalid ~= "accept" then
+        minux.debug("groupleave:E:403:denied","auth")
+        print(printstring)
+        minux.debug("groupleave:E:403:U"..-templogin.." ID-"..clientid,"auth")
+        minux.monitorprint(printstring)
+        netlib.sendstring(clientid, "AUTH-GRP-DENIED")
+        return false
+    end
+    if fs.exists("/usr/auth-server/userdata/"..tempusername..".db") == false then
+        netlib.sendstring(clientid, "AUTH-GRP-UNOEXIST")
+        minux.debug("groupleave:usernoexist","auth")
+        printstring = "AUTH:GRPUD:UEXITST:GRP-"..tempgroupname.." U-"..templogin
+        print(printstring)
+        minux.monitorprint(printstring)
+        return false
+    elseif fs.exists("/usr/auth-server/groupdata/"..tempgroupname..".db") == false then
+        netlib.sendstring(clientid, "AUTH-GRP-NOEXIST")
+        minux.debug("groupleave:groupnoexist","auth")
+        printstring = "AUTH:GRPUD:EXITST:GRP-"..tempgroupname.." U-"..templogin
+        print(printstring)
+        minux.monitorprint(printstring)
+        return false
+    end
+    local line = "start"
+    local maker = false
+    local tempfile = fs.open("/usr/auth-server/groupdata/"..tempgroupname..".db","r")
+    while line ~= nil do
+        line = tempfile.readLine()
+        if line == "MK" then maker = tempfile.readLine() end
+    end
+    tempfile.close()
+    if isvalid ~= "admin" and maker ~= templogin then
+        netlib.sendstring(clientid, "AUTH-GRP-NOACCEPT")
+        printstring = "AUTH:GRPUD:FALSE:GRP-"..tempgroupname.." U-"..templogin
+        print(printstring)
+        minux.debug("groupleave:E:400:denied","auth")
+        minux.monitorprint(printstring)
+        return false
+    end
+    netlib.sendstring(clientid, "AUTH-GRP-ACCEPT")
+    printstring = "AUTH:GRPUA:TRUE:GRP-"..tempgroupname.." U-"..templogin
+    print(printstring)
+    minux.debug("groupleave:accept","auth")
+    minux.monitorprint(printstring)
+    minux.removestring("/usr/auth-server/groupdata/"..tempgroupname..".db",tempusername)
+end

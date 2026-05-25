@@ -1,0 +1,1 @@
+if fs.exists("/bin/nfsd.sh") then shell.setAlias("nfsd" , "/bin/nfsd.sh") end

@@ -1,0 +1,23 @@
+apt repository - primary
+program name:"passdoor"
+installation: "apt -i passdoor"
+
+This is a 3rd party application installer, 
+the actual program and manual can be found here:
+https://forums.computercraft.cc/index.p ... opic=643.0
+All credits to ProSpace
+
+a very simple yet very powerfull password program 
+to open a door, no network required. quick and quite secure.
+install on a computer using "apt -i passdoor", then reboot 
+the computer, read the instructions.
+
+because it is quite stubborn and doesn't yield without a fight, 
+uninstalling this program can be a bit tricky, you'll have to 
+boot up the computer with a boot disk into a command shell 
+then do the following:
+
+/boot/network/dhcp.sys | this searches for dhcp wich login needs
+/bin/login.sh username password | log in as admin/owner so apt doesn't cry
+/bin/apt.sh -r passdoor | this uninstalls passdoor
+reboot | reboot the system.

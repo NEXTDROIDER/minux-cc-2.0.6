@@ -1,0 +1,322 @@
+-- dhcp server functions
+args = { ... }
+local clientid = tonumber(args[1])
+local req = args[2]
+
+-- catch invalid input
+if req == nil or req == "" then
+	minux.debug("dhcp-reg:E:501:invalid data","dhcp")
+	local printstring = "DHCP:REG:NOID"
+	print(printstring)
+	minux.monitorprint(printstring)
+	return false
+end
+
+-- check user credentials with the auth, this function will be adresses when auth gets adressed
+function alogin(clientid, aname, apass)
+	expect(1,clientid, "number")
+	expect(2, aname, "string")
+	expect(3, apass, "string")
+	rednet.send(_G.authserver, "AUTH-LOGIN")
+	local tempid, tempdata = rednet.receive(1)
+	minux.debug("dhcp-reg:logincheck","dhcp")
+-- login: awaiting reply, connecting
+	if tempdata ~= "AUTH-ACK" then
+		minux.debug("dhcp-reg:E:507:Noauth","dhcp")
+		local printstring = "DHCP:REG:AUTH:NOACK"
+		print(printstring)
+		minux.monitorprint(printstring)
+		return false
+	else
+		minux.debug("building netlib table","minux")
+		local sendtable = {}
+		sendtable[1] = aname
+		sendtable[2] = apass
+		minux.debug("login:u-"..sendtable[1] , "minux")
+		local reply = netlib.sendtable(_G.authserver, sendtable)
+		if reply == true then
+			minux.debug("login:data Sync success" , "minux")
+		else
+			minux.debug("login:E:210:data sync error" , "minux")
+			print("AUTH:SYNC:ERROR")
+			print("failed to syncronise/transfer user data")
+			print("if this persists there may be a system spamming the network trough broadcast or in a reboot loop")
+			sleep(3)
+		end
+		local data = netlib.getstring(_G.authserver, 1)
+		if data == "accept" then
+			minux.debug("dhcp-reg:auth-accept","dhcp")
+			return true
+		elseif data == "admin" then
+			minux.debug("dhcp-reg:auth-admin","dhcp")
+			return data
+		else
+			minux.debug("dhcp-reg:E:503:Denied!","dhcp")
+			minux.monitorprint("dhcp-reg:E:503:Denied!")
+		end
+	end
+	return false
+end
+
+
+-- register for DNS lookup, the request has been cought by the handler.
+function register(clientid)
+	expect(1,clientid, "number")
+	local data = {}
+
+-- reg: reply confirm and receive data table
+	rednet.send(clientid, "DHCP-ACK")
+	minux.debug("dhcp-reg:receiving data","dhcp")
+	data = netlib.gettable(clientid, 3)
+	if data[3] == nil or data == false then
+		minux.monitorprint("Data sync failed, aborting")
+		minux.debug("dhcp-reg:E:502:Sync-fail","dhcp")
+		rednet.send(clientid, "DHCP-FAIL")
+		return false
+	else
+		minux.monitorprint("Data synced ID:"..clientid)
+		minux.monitorprint("U:"..data[1].." N:"..data[3])
+		minux.debug("dhcp-reg:Data sync:ID:"..clientid.." U:"..data[1].." N:"..data[3],"dhcp")
+	end
+
+-- reg: verify user credentials
+	local validuser = alogin(clientid, data[1], data[2])
+	if validuser == true  or validuser == "admin" then
+-- reg: if accepted we check if the file exists
+		if fs.exists("/usr/dhcp-server/systems/"..data[3]..".id") then
+			local printstring = "DHCP:REG:EXIST:U-"..data[1].." S-"..data[3]
+			print(printstring)
+			minux.monitorprint(printstring)
+			rednet.send(clientid , "REG-EXIST")
+			minux.debug("dhcp-reg:exist","dhcp")
+-- reg: does not exist, write.
+		else
+			local printstring = "DHCP:REG:ACCEPT:U-"..data[1].." S-"..data[3]
+			print(printstring)
+			minux.monitorprint(printstring)
+			rednet.send(clientid , "REG-ACCEPT")
+			local newfile = fs.open("/usr/dhcp-server/systems/"..data[3]..".id" , "w")
+			newfile.writeLine("OWN")
+			newfile.writeLine(data[1])
+			newfile.writeLine("ID")
+			newfile.writeLine(clientid)
+			newfile.writeLine("NAME")
+			newfile.writeLine(data[3])
+			newfile.close()
+			newfile = fs.open("/usr/dhcp-server/systems/"..clientid..".id" , "w")
+			newfile.writeLine("OWN")
+			newfile.writeLine(data[1])
+			newfile.writeLine("ID")
+			newfile.writeLine(clientid)
+			newfile.writeLine("NAME")
+			newfile.writeLine(data[3])
+			newfile.close()
+			minux.debug("dhcp-reg:accept","dhcp")
+			return true
+		end
+-- if denied, then deny!
+	else
+		minux.debug("dhcp-reg:E:503:Denied!","dhcp")
+		minux.debug("dhcp-reg:E:503:U:"..data[1],"warning")
+		local printstring = "!ALERT!"
+		print(printstring)
+		minux.monitorprint(printstring)
+		printstring = "DHCP:REG:AUTH:DENIED:U-"..data[1].." ID-"..clientid
+		print(printstring)
+		minux.monitorprint(printstring)
+		rednet.send(clientid , "DHCP-ALERT")
+	end
+end
+
+-- function unregister from dns
+function unregister(clientid)
+	expect(1,clientid,"number")
+-- send confirmation, receive data.
+	minux.debug("dhcp-ureg:receiving data","dhcp")
+	rednet.send(clientid , "DHCP-REG-ACK")
+	local printstring = "start"
+	local data = {}
+	data = netlib.gettable(clientid, 3)
+	if data == false then
+		minux.debug("dhcp-ureg:E:502:Sync fail","dhcp")
+		return false, 502
+	end
+	local templogin = data[1]
+	local temppass = data[2]
+	local tempname = data[3]
+	minux.debug("dhcp-ureg:verify","dhcp")
+	minux.debug("dhcp-ureg:U-"..templogin.." T-"..tempname,"dhcp")
+	minux.monitorprint("dhcp-ureg:U-"..templogin.." T-"..tempname,"dhcp")
+
+-- check credentials, request login accept bounce and verify, to be replaced with auth update
+	local validuser = alogin(clientid, data[1], data[2])
+	if validuser == true or validuser == "admin" then
+-- lookup and find both files
+		if fs.exists("/usr/dhcp-server/systems/"..tempname..".id") == true then
+			minux.debug("dhcp-ureg:accept, removing","dhcp")
+			minux.monitorprint("Ureg:noexist")
+			lookupfile = fs.open("/usr/dhcp-server/systems/"..tempname..".id" , "r")
+			line = "start"
+			while line ~= nil do
+				line = lookupfile.readLine()
+				if line == "OWN" then lookupowner = lookupfile.readLine()
+				elseif line == "NAME" then lookupname = lookupfile.readLine()
+				elseif line == "ID" then lookupid = lookupfile.readLine()
+				end
+			end
+		else
+			minux.debug("dhcp-ureg:noexist","dhcp")
+			rednet.send(clientid , "REG-NOEXIST")
+			return "noexist"
+		end
+		if templogin == lookupowner or data == "AUTH-ADMIN" then
+			minux.debug("dhcp-ureg:remove accept","dhcp")
+			printstring = "DHCP:UREG:ACCEPT:U-"..templogin.." S-"..tempname
+			print(printstring)
+			minux.monitorprint(printstring)
+			rednet.send(clientid , "REG-ACCEPT")
+			fs.delete("/usr/dhcp-server/systems/"..lookupname..".id" , "r")
+			fs.delete("/usr/dhcp-server/systems/"..lookupid..".id" , "r")
+			return true
+		else
+			minux.debug("dhcp-ureg:E:500:access denied","dhcp")
+			printstring = "DHCP:UREG:DENIED:U-"..templogin.." S-"..tempname
+			print(printstring)
+			minux.monitorprint(printstring)
+			rednet.send(clientid , "REG-DENIED")
+			return false
+		end
+-- ureg if access denied
+	elseif validuser == false then
+		minux.debug("dhcp-ureg:E:503:denied","dhcp")
+		minux.debug("dhcp-ureg:E:503:Denied U-"..templogin,"warning")
+		printstring = "!ALERT!"
+		print(printstring)
+		minux.monitorprint(printstring)
+		printstring = "DHCP:UREG:AUTH:DENIED:U-"..templogin.." ID-"..clientid
+		print(printstring)
+		minux.monitorprint(printstring)
+		rednet.send(clientid , "DHCP-ALERT")
+		return false
+-- ureg if no reply
+	else
+		minux.debug("dhcp-ureg:E:509:noreply","dhcp")
+		printstring = "DHCP:UREG:AUTH:NOREPLY:U-"..templogin.." ID:"..clientid
+		print(printstring)
+		shell.run("/etc/minux-main/sys/monitorprint.sys "..printstring)
+		return false
+	end
+end
+
+-- lookup function
+function lookup(clientid)
+	minux.debug("dhcp-serv:listening for data","dhcp")
+	rednet.send(clientid, "DHCP-ACK")
+	local tempid, query = rednet.receive(1)
+	rednet.send(clientid, query)
+	tempid, data = rednet.receive(1)
+	minux.debug("dhcp-serv:verify","dhcp")
+	if data ~= "SYNC-TRUE" then
+		minux.debug("dhcp-serv:E:502:sync-fail","dhcp")
+		printstring = "DHCP:LOOKUP:SYNCFAIL:ID-"..clientid
+		print(printstring)
+		shell.run("/etc/minux-main/sys/monitorprint.sys "..printstring)
+		return false
+	end
+	minux.debug("dhcp-serv:lookup:"..query.." ID-"..tempid,"dhcp")
+
+-- reset values to prevent corrupt data
+	lookupname = "unknown"
+	lookupid = "unknown"
+	lookupowner = "unknown"
+
+-- looking for file and if exists setting correct values.
+	minux.debug("dhcp-serv:lookup file","dhcp")
+	if fs.exists("/usr/dhcp-server/systems/"..query..".id") == true then
+		minux.debug("dhcp-serv:found, reading data","dhcp")
+		local lookupfile = fs.open("/usr/dhcp-server/systems/"..query..".id" , "r")
+		line = "start"
+		while line ~= nil do
+			line = lookupfile.readLine()
+			if line == "OWN" then lookupowner = lookupfile.readLine()
+			elseif line == "NAME" then lookupname = lookupfile.readLine()
+			elseif line == "ID" then lookupid = lookupfile.readLine()
+			end
+		end
+	end
+
+-- sending data
+	minux.debug("dhcp-serv:sending result","dhcp")
+	printstring = "DHCP:LOOKUP:ID-"..clientid.." Q-"..query
+	print(printstring)
+	minux.monitorprint(printstring)
+	rednet.send(clientid, lookupname)
+	rednet.send(clientid, lookupid)
+	rednet.send(clientid, lookupowner)
+end
+
+-- dns list
+function dnslist(clientid)
+	expect(1,clientid,"number")
+	local fslist = {}
+	local dnslist = {}
+	local stringcount = false
+	fslist = fs.list("/usr/dhcp-server/systems/")
+	fscount = 1
+	dnscount = 0
+	while fslist[fscount] ~= nil do
+		stringcount = string.len(fslist[fscount])
+		if stringcount > 6 then
+			dnscount = dnscount + 1
+			dnsline = fslist[fscount]
+			stringcount = stringcount - 3
+			newline = dnsline:sub(1, stringcount)
+			dnslist[dnscount] = newline
+		end
+		fscount = fscount + 1
+	end
+	local reply = netlib.sendtable(clientid, dnslist)
+	if reply == false then
+		minux.debug("DHCP:list transfer failed")
+		minux.monitorprint("DHCP:list transfer failed")
+		return false
+	else
+		minux.debug("DHCP:list transfer done")
+		minux.monitorprint("DHCP:list transfer done")
+		return true
+	end
+end
+
+-- check the incomming request and activate the correct function
+
+if req == "DHCP-REG" then
+	minux.monitorprint("dhcp-register ID:"..clientid)
+	local tempreply = register(clientid)
+	if tempreply == true then
+		minux.monitorprint("Registered successfully")
+		minux.debug("Registered successfully", "dhcp")
+		return true
+	else
+		minux.monitorprint("registery failed")
+		minux.debug("Registery failed", "dhcp")
+		return false
+	end
+elseif req == "DHCP-UREG" then
+	minux.monitorprint("dhcp-unregister ID:"..clientid)
+	local tempreply = unregister(clientid)
+	if tempreply == true then
+		minux.monitorprint("unregistered successfully")
+		minux.debug("unregistered successfully", "dhcp")
+		return true
+	else
+		minux.monitorprint("unregistery failed")
+		minux.debug("unregistery failed", "dhcp")
+		return false
+	end
+elseif req == "DHCP-LOOKUP" then
+	minux.monitorprint("dhcp-unregister ID:"..clientid)
+	lookup(clientid)
+elseif req == "DHCP-LIST" then
+	dnslist(clientid)
+	minux.monitorprint("dhcp-list ID:"..clientid)
+end

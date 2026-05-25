@@ -1,0 +1,10 @@
+AIF=true
+https://minux.cc/apt/2.0/soft/
+version=2.0
+author=LDDestroier
+php=false
+[filelist]
+/bin/progdor.sh
+/etc/apt/alias/progdor.al
+/etc/apt/boot/progdor.d
+/etc/man/progdor.man

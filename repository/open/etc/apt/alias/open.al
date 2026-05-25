@@ -1,0 +1,1 @@
+if fs.exists("/bin/open.sh") then shell.setAlias("open" , "/bin/open.sh") end

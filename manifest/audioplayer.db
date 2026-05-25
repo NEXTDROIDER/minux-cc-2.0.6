@@ -1,0 +1,10 @@
+AIF=true
+https://minux.cc/apt/2.0/soft/
+version=1.0
+author=GroupXyz
+php=true
+[filelist]
+/bin/audioplayer.sh
+/gbin/audioplayer.exe
+/etc/apt/alias/audioplayer.al
+/etc/apt/cleanup/audioplayer.db

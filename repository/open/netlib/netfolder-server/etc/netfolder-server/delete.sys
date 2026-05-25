@@ -1,0 +1,37 @@
+-- delete netfolder server side
+
+args = {...}
+clientid = tonumber(args[1])
+
+-- catch bad input
+if clientid == nil or clientid == "" then print("delete:Invalid input") return 0 end
+
+-- listen to the data, bounce, then wait for verify
+tempid, temppath = rednet.receive(1)
+tempid, templogin = rednet.receive(1)
+tempid, temppass = rednet.receive(1)
+rednet.send(clientid , temppath)
+rednet.send(clientid , templogin)
+rednet.send(clientid , temppass)
+tempid, data = rednet.receive(1)
+if data ~= "SYNC-SUCC" then print("Sync failed ID:"..clientid) return 0 end
+
+-- verify user data with AUTH
+-- we try to log in as the user
+shell.run("/etc/minux-main/sys/nlogin.sys "..templogin.." "..temppass)
+if _G.validlogin ~= true then
+	print("Access denied:U-"..templogin.." ID-"..clientid)
+	rednet.send(clientid , "NETFOLDER-DENIED")
+	return 0
+end
+
+-- we check if the file exists
+if fs.exists(_G.netfolderroot.."/"..templogin.."/"..temppath) == false then
+	print("404:U-"..templogin.." F-"..temppath)
+	rednet.send(clientid , "NETFOLDER-NOEXIST")
+	return 0
+else
+	rednet.send(clientid, "NETFOLDER-DEL")
+	print("Sendfile U-"..templogin.." F-"..temppath)
+	fs.delete(_G.netfolderroot.."/"..templogin.."/"..temppath)
+end

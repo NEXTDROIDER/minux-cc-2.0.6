@@ -1,0 +1,3 @@
+--DHCP server startup script
+print("Launching DHCP-server")
+shell.run("/etc/dhcp-server/dhcp-server.sys")

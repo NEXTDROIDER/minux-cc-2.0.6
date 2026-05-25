@@ -1,0 +1,7 @@
+function changewelcome(filename)
+    if fs.exists(filename) == false then return false end
+    local tempfile = fs.open("/usr/minux-main/welcome.cfg","w")
+    tempfile.writeLine(filename)
+    tempfile.close()
+    return true
+end

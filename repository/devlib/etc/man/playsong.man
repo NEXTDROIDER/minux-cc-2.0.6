@@ -1,0 +1,17 @@
+the playsong binary is
+part of the "devlib"
+program and used to play
+a dfwpm audio file.
+
+converting and obtaining
+the file must be done
+trough other means.
+
+usage:
+playsong file
+
+output:
+plays the file it's pointed to.
+eg:
+playsong /testsong.dfwmp
+plays "/testsong.dfwmp"

@@ -1,0 +1,2 @@
+-- yes LD, we have found your cow! this is an ode to that magnificent beast.
+shell.run("/bin/progdor.sh moo")

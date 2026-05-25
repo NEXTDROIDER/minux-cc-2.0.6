@@ -1,0 +1,274 @@
+	
+	/ Index /
+	
+1. Installation
+2. How to Browse
+	a. Supported Site Protocols
+	b. Shell Command
+	c. Hotkeys
+	d. Error Codes
+3. Browser Configuration
+	a. browser.cfg
+	b. defaults.cfg
+4. Creating Websites
+	a. .HTML
+	b. Adding Images
+	c. Plain Text
+5. Hosting Websites
+	a. Ingame
+	b. Local Using HTTPS://
+	c. Online
+	
+	/ Installation /
+	
+Sonata is reliant on Minux OS and supporting APIs
+to run. 
+	
+Unless you know what you're doing, download
+Sonata using the following commands on an
+advanced computer:
+'wget run https://minux.cc/netinstall'
+'apt -i sonata'
+	
+The 'dhcp' and 'rnwtp' API provide
+functionality for viewing ingame websites.
+	
+Without a modem connected, you will not
+be able to view these sites.
+	
+Likewise, If you attempt to run an audio file
+without a speaker connected, it will not work.
+	
+Once installed, you can run 'sonata' to
+view your default homepage.
+		
+	/ How to Browse /
+	
+Supported Site Protocols:
+	https://
+	 via WAN or LAN using domain name or IP.
+	rni://
+	 via rednet using computer ID.
+	rnn://
+	 via rednet using name registered to DHCP.
+	file://
+	 to view sites locally.
+
+Insecure HTTP is not supported!
+	
+When browsing directories, make sure the '/' at
+the end of the link exists.
+	
+Shell Command:
+'sonata protocol://sitename'
+	Example: 'sonata https://minux.cc'
+	
+If no protocol found, will assume https://
+by default.
+	
+Hotkeys:
+	Scroll up/down using mouse wheel or
+	arrow keys.
+	Page Up - Go to top of page.
+	Page Down - Go to bottom of page.
+	Home - If on website directory, will return
+	       you to index, otherwise returns you
+	       to your homepage.
+	Backspace - Returns you to the previous site.
+	Q - Quit
+	G - Search
+	D - Download current page.
+	B - Bookmark current page or
+	    remove from library.
+	L - Go to bookmark library.
+	
+Error Codes:
+	RNWTP:
+	 900 - Failed to find server.
+	 901 - Failed to send the filename request.
+	 902 - Failed to send the file itself.
+	 903 - Access denied by server.
+	 904 - File not found.
+	
+	Tablature:
+	 801 - Invalid input.
+	 802 - Request to sync failed.
+	 808 - Data sync failed.
+	 809 - File failed to send.
+
+	/ Browser Configuration /
+	
+browser.cfg
+	Enabling the cache is almost always 
+	reccommended- Your browser will send 
+	less requests overall, and return to 
+	previously visited sites quicker.
+	For debugging purposes it can be disabled.
+	
+	By default, Sonata deletes the 'temp/sonata' 
+	folder when the program exits, you can limit 
+	this to only happen when the PC restarts.
+	
+	When special files or pages are downloaded 
+	using 'd', they automatically get copied to 
+	a specific directory.
+	The default folder is '/home/login/downloads'
+	
+	If there are any missing dependencies on launch,
+	Sonata will warn you before running. You can 
+	disable this.
+	
+	Certain files are unable to be read by Sonata and 
+	instead can be automatically downloaded or ran 
+	in browser. See 'defaults.cfg' below for 
+	more information.
+	
+defaults.cfg
+	You can specify programs to run
+	special file extensions by default.
+	
+	The format to add new entries is:
+	.nfp 	<- File extension
+	/roms/programs/fun/paint.nfp	<- Program dir
+	
+	/ Creating Websites /
+	
+.HTML
+	Sonata can view websites in HTML, with 
+	simple formatting.
+	View template A or the default homepage to see 
+	how HTML sites should be formatted.
+
+	Supported tags:
+	 html
+	 head
+	 title
+	 * body
+	 a href
+	 script
+	 br
+	 b
+	 u
+	 i
+	
+	* 'body' and 'html' tags required to read html,
+	  all other tags are optional.
+	
+	  'title' tag will display on the top bar when 
+	  users visit your site.
+	  
+	  Make sure title tags are not contained inside 
+	  of body tags, unless you want the text to be 
+	  visible on the page itself.
+	  
+	  'a href' can use static and dynamic links, 
+	  with the following protocols:
+	   https://
+	   rni://
+	   rnn://
+	   file://
+	   
+	*  apt-s://
+		Used to set apt source.
+		Example: 'apt-s://minux.cc/stable/'
+		
+	*  apt-i://
+		Used to request apt install.
+		Example: 'apt-i://sonata'
+	
+Adding Images:
+	NFP images can be put into 'script' tags, 
+	followed by the comment '//NFP'. 
+	Images must be assigned as a javascript 
+	variable, using backticks to contain the 
+	NFP string.
+	
+	View template B or the default homepage for an 
+	example on embedding images.
+	
+Plain Text:
+	You can create a page without any special
+	formatting in situations where you don't need
+	image or links.
+	
+	If you got here via the official website, that's
+	how you're viewing this page now! :D
+	
+	You can use a combination of HTML and plain 
+	text pages to make a functional website.
+	
+	/ Hosting Websites /
+	
+Ingame:
+	Using RNI://
+	 The easiest way to set up an ingame web server
+	 is by using 'Tablature'.
+	 
+	 You can install it from the official website on the 
+	 'Downloads' page, or if you already have the Minux
+	 stable repository as a source, install with:
+	 'apt -i tablature'
+	 
+	 If 'dhcp' is not found upon configuration, you
+	 will still be able to register a site name 
+	 later.
+	 
+	 After configuration, you'll be able to connect to
+	 your site with the PC ID, like so:
+	 'sonata rni://1'
+	 
+	Using RNN://
+	 To use rednet name resolution, you
+	 will need to use: 'dhcp register name'
+	 on the server pc running tablature.
+	 
+	 Fake domain names are OK. Example:
+	 'dhcp register ingamesite.mc'
+	 
+	 Once registered, people can
+	 connect to your site using:
+	 'sonata rnn://ingamesite.mc'
+	
+Local Using HTTPS://
+	To host a website on your own network,
+	you will need to set up a web server;
+	Some providers include Apache and NGINX.
+	
+	There are going to be specific installation
+	steps for each server and operating system
+	which are not going to be documented here.
+	
+	However, to host a site locally, most web
+	servers only require some configuration after
+	install. 
+	
+Online:
+	Self Hosted:
+	 After you set up 'Local Using HTTPS://'
+	 you can open your server to the internet,
+	 but it will require some work to configure,
+	 secure, and maintain.
+	 
+	 As an alternative, there are plenty of online
+	 services that offer website and file hosting.
+	
+	Pastebin: 
+	 If you want to host a single public page
+	 you can use a file host like Pastebin. 
+	 
+	 Just upload your page and share using the
+	 'raw' link, like so: 'pastebin.com/raw/#'
+ 	
+	Github Pages:
+	 Github offers free hosting for small
+	 personal websites (using Jekyll)
+	 under the domain: 'user.github.io'
+	
+	 There is a setup guide available on
+	 'docs.github.com/en/pages/quickstart'
+	
+You can use websites to share links
+and information about your programs with
+other people. 
+	
+Thanks for checking out Sonata! :D

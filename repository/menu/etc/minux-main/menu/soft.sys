@@ -1,0 +1,209 @@
+-- config menu, part of main menu but can be called seperate
+
+local softmenuactive = true
+while softmenuactive == true do
+	local title = "Apt software manager"
+	local choices = {"return/exit", "list installed software", "list available software", "update software" , "install software" , "remove software" ," ","list available sources", "add software source", "remove software source"}
+	local actions = {}
+
+	actions[1] = function()
+	minux.debug("softmenu:return/exit" , "minux")
+	softmenuactive = false
+	end
+	actions[2] = function()
+	print("")
+	minux.debug("softmenu:listinstalled" , "minux")
+	print("Installed software:")
+	shell.run("/bin/apt.sh -l")
+	print("hit enter to continue")
+	read()
+	end
+	actions[3] = function()
+		print("")
+		minux.debug("softmenu:listavail" , "minux")
+		apt.softlist()
+		-- we can now read the list and build the database
+		print("game list retrieved, processing..")
+		local tempfile = fs.open("/temp/apt/programs.ls","r")
+		local templine = tempfile.readLine()
+		local gamelist = {}
+		local gamecount = 1
+		while templine ~= nil do
+			templine = tempfile.readLine()
+			if templine ~= nil then
+				gamelist[gamecount] = templine
+			end
+			gamecount = gamecount + 1
+		end
+		-- build the game list
+		function buildMenu()
+			title = "Available software"
+			choices = {}
+			choices[1] = "return/exit"
+			actions = {}
+			actions[1] = function()
+			minux.debug("favmenu:return/exit" , "minux")
+			progmenuactive = false
+		end
+		local appcount = 1
+		local listcount = 2
+		while gamelist[appcount] ~= nil do
+			choices[listcount] = gamelist[appcount]
+			actions[listcount] = function(selected)
+				local baseTerm = term.redirect(term.native())
+				term.clear()
+				term.setCursorPos(1,1)
+				-- here we run ourself with arguments, the chosen apt source and game selected.
+				minux.debug("installing:"..gamelist[selected-1])
+				local result = apt.install(gamelist[selected-1])
+				if result == true then
+					print(gamelist[selected-1].." - installed")
+				else
+					print("installation failed, likely already installed.")
+				end
+				print("hit enter to continue")
+				read()
+				progmenuactive = false
+				term.clear()
+				term.setCursorPos(1,1)
+				local colortable = minux.getbashcolor()
+				local termX, termY = term.getSize()
+				term.setBackgroundColor(colortable[2])
+				term.setTextColor(colortable[3])
+				local title = "Minux V:".._G.version.." U-".._G.login
+					print(title..string.rep(" ", termX - #title))
+					print(string.rep(" ", termX))
+					term.redirect(baseTerm)
+				end
+				appcount = appcount + 1
+				listcount = listcount + 1
+			end
+		end
+
+-- we present the list.
+		progmenuactive = true
+		buildMenu()
+		while progmenuactive == true do
+			menu.menuOptions(title, choices, actions)
+		end
+	end	
+	actions[4] = function()
+	print("")
+	minux.debug("softmenu:update" , "minux")
+	apt.update()
+	print("hit enter to continue")
+	read()
+	end
+	actions[5] = function()
+		print("")
+		minux.debug("softmenu:install" , "minux")
+		print("what package to install?:")
+		local input = read()
+		if input ~= nil then
+			apt.install(input)
+		end
+	print("hit enter to continue")
+	read()
+	end
+	actions[6] = function()
+		print("")
+		minux.debug("softmenu:delsoft" , "minux")
+		-- we can now read the list and build the database
+		print("file list processing..")
+		local tempfile = fs.open("/etc/apt/list/installed.db","r")
+		local templine = tempfile.readLine()
+		local gamelist = {}
+		local gamecount = 1
+		while templine ~= nil do
+			templine = tempfile.readLine()
+			if templine ~= nil then
+				gamelist[gamecount] = templine
+			end
+			gamecount = gamecount + 1
+		end
+		-- build the software list
+		function buildMenu()
+			title = "installed software software"
+			choices = {}
+			choices[1] = "return/exit"
+			actions = {}
+			actions[1] = function()
+			minux.debug("favmenu:return/exit" , "minux")
+			progmenuactive = false
+		end
+		local appcount = 1
+		local listcount = 2
+		while gamelist[appcount] ~= nil do
+			choices[listcount] = gamelist[appcount]
+			actions[listcount] = function(selected)
+				local baseTerm = term.redirect(term.native())
+				term.clear()
+				term.setCursorPos(1,1)
+				-- here we run ourself with arguments, the chosen apt source and game selected.
+				minux.debug("removing:"..gamelist[selected-1])
+				local result = apt.uninstall(gamelist[selected-1])
+				if result == true then
+					print(gamelist[selected-1].." - uninstalled")
+				else
+					print("removal failed, likely not installed.")
+				end
+				print("hit enter to continue")
+				read()
+				progmenuactive = false
+				term.clear()
+				term.setCursorPos(1,1)
+				local colortable = minux.getbashcolor()
+				local termX, termY = term.getSize()
+				term.setBackgroundColor(colortable[2])
+				term.setTextColor(colortable[3])
+				local title = "Minux V:".._G.version.." U-".._G.login
+					print(title..string.rep(" ", termX - #title))
+					print(string.rep(" ", termX))
+					term.redirect(baseTerm)
+				end
+				appcount = appcount + 1
+				listcount = listcount + 1
+			end
+		end
+
+-- we present the list.
+		progmenuactive = true
+		buildMenu()
+		while progmenuactive == true do
+			menu.menuOptions(title, choices, actions)
+		end
+	end
+	actions[7] = function()
+	end
+	actions[8] = function()
+	print("")
+	print("available sources")
+	minux.debug("softmenu:listsource" , "minux")
+	shell.run("/bin/less.sh /usr/apt/source.ls")
+	print("hit enter to continue")
+	read()
+	end
+	actions[9] = function()
+		print("")
+		minux.debug("softmenu:addsource" , "minux")
+		print("add source url:")
+		local input = read()
+		if input ~= nil then
+			apt.addsource(input)
+		end
+	print("hit enter to continue")
+	read()
+	end
+	actions[10] = function()
+		print("")
+		minux.debug("softmenu:delsource" , "minux")
+		print("remove source url:")
+		local input = read()
+		if input ~= nil then
+			apt.clearsource(input)
+		end
+	print("hit enter to continue")
+	read()
+	end
+	menu.menuOptions(title, choices, actions)
+end

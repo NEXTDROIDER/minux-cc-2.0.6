@@ -1,0 +1,17 @@
+AIF=true
+https://minux.cc/apt/2.0/soft/
+version=1.0.2
+author=minux-team
+php=true
+[depstart]
+auth-client
+[depstop]
+[filelist]
+/etc/door/door.sys
+/etc/door/launchdoor.sys
+/etc/door/request.sys
+/etc/apt/boot/door.db
+/etc/apt/alias/door.al
+/etc/apt/cleanup/door.db
+/bin/doorconfig.sh
+/gbin/doorconfig.exe

@@ -1,0 +1,1 @@
+if fs.exists("/bin/tron.sh") then shell.setAlias("tron" , "/bin/tron.sh") end

@@ -1,0 +1,10 @@
+apt repository - primary
+program name:"minex"
+installation: "apt -i minex"
+
+This is a 3rd party application installer, 
+the actual program and manual can be found here:
+https://forums.computercraft.cc/index.php?PHPSESSID=b5lok79ugfca0fk5aa5m0fm237&topic=509.0
+All credits to Reimar
+
+a GUI file explorer, very impressive. visit the maker's site for more info

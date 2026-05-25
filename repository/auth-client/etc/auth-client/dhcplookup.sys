@@ -1,0 +1,42 @@
+-- dhcp lookup client side script
+-- sets lookup values for other programs to use
+args = {...}
+local systemname = args[1]
+minux.debug("lookup:starting" , "auth")
+
+-- catch invalid input
+minux.debug("lookup:resetting cache" , "auth")
+if systemname == nil or systemname == "" then print("Invalid input") return 0 end
+_G.lookupid = "unkown"
+_G.lookupname = "unkown"
+_G.lookupowner = "unkown"
+
+-- contact the server and make our request
+minux.debug("lookup:"..systemname , "auth")
+rednet.send(_G.server , "DHCP-LOOKUP")
+tempid, tempdata = rednet.receive(1)
+if tempdata ~= "DHCP-ACK" then print("dhcp offline or busy") minux.debug("lookup:E:306:dhcp offline" , "auth") return 0 end
+
+-- sending name, bouncing for verification
+minux.debug("lookup:sending data" , "auth")
+rednet.send(_G.server , systemname)
+tempid, tempdata = rednet.receive(1)
+minux.debug("lookup:verify" , "auth")
+if tempdata ~= systemname then
+	minux.debug("lookup:E:302:sync-fail" , "auth")
+	print("dhcp data sync failed")
+	rednet.send(_G.server , "SYNC-FAIL")
+	return 0
+end
+minux.debug("lookup:data-sync" , "auth")
+rednet.send(_G.server , "SYNC-TRUE")
+
+-- await reply and setting values
+minux.debug("lookup:receiving data" , "auth")
+tempid, _G.lookupname = rednet.receive(1)
+minux.debug("name:".._G.lookupname, "auth")
+tempid, _G.lookupid = rednet.receive(1)
+minux.debug("id:".._G.lookupid, "auth")
+tempid, _G.lookupowner = rednet.receive(1)
+minux.debug("owner:".._G.lookupowner, "auth")
+minux.debug("lookup:done" , "auth")

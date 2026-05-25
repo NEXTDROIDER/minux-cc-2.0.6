@@ -1,0 +1,9 @@
+sdris, a tetris clone
+executable location: '/bin/sdris.sh'  alias:'sdris'
+sdris is part of the 'sdris' app
+
+this is a 3rd party app created by "LLDestroier" on CC forums
+
+you play on the left screen, the right is an attempt in progress for multiple players
+you turn your pieces with the "z" key.
+shut it off using the "q" key

@@ -1,0 +1,12 @@
+AIF=true
+https://minux.cc/apt/2.0/soft/
+version=1.0
+author=ShreksHellraiser
+php=true
+[filelist]
+/bin/sword.sh
+/gbin/sword.exe
+/etc/apt/alias/sword.al
+/etc/apt/boot/sword.d
+/etc/man/sword.man
+/etc/apt/cleanup/sword.db

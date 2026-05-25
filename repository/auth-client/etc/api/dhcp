@@ -1,0 +1,92 @@
+-- dhcp api
+function renew()
+    os.run({}, "/boot/network/dhcp.sys")
+end
+function register(name)
+    expect(1,name,"string")
+    minux.debug("DHCP:Register:start","auth")
+    rednet.send(_G.server,"DHCP-REG")
+    local tempid, tempdata = rednet.receive(2)
+    if tempdata ~= "DHCP-ACK" then
+        minux.debug("DHCP:E:306:Connect Fail")
+        return false, 306
+    end
+    local data = {}
+    data[1] = _G.login
+    data[2] = _G.masterpass
+    data[3] = name
+    local tablesent = netlib.sendtable(_G.server, data)
+    if tablesent == false then
+        minux.debug("DHCP:E:302:Connect Fail")
+        return false, 302
+    end
+    local temp, reply = rednet.receive(2)
+    if reply == "DHCP-ALERT" then
+        minux.debug("Register:E:300:Access denied", "warn")
+        return false, 300
+    elseif reply == "REG-ACCEPT" then
+        minux.debug("Register:Accept","dhcp")
+        return true
+    elseif reply == "REG-EXIST" then
+        minux.debug("Register:Exists","dhcp")
+        return "exists"
+    else
+        minux.debug("Register:E304:noreply", "dhcp")
+        return false, 304
+    end
+end
+
+function unregister(name)
+    expect(1,name,"string","nil")
+    minux.debug("DHCP:unregister:start","dhcp")
+    if name == nil then name = os.getComputerID() end
+    rednet.send(_G.server,"DHCP-UREG")
+    local tempid, tempdata = rednet.receive(2)
+    if tempdata ~= "DHCP-REG-ACK" then
+        minux.debug("DHCP:E:306:Connect Fail")
+        return false, 306
+    end
+    minux.debug("building transmit table","dhcp")
+    local data = {}
+    data[1] = _G.login
+    data[2] = _G.masterpass
+    data[3] = name
+    minux.debug("Table built, sending","dhcp")
+    local tablesent = netlib.sendtable(_G.server, data)
+    minux.debug("Table sent","dhcp")
+    if tablesent == false then
+        minux.debug("DHCP:E:302:Connect Fail", "dhcp")
+        return false, 302
+    end
+    local temp, reply = rednet.receive(2)
+    if reply == "DHCP-ALERT" then
+        minux.debug("unregister:E:300:Access denied", "warn")
+        return false, 300
+    elseif reply == "REG-ACCEPT" then
+        minux.debug("unregister:Accept","dhcp")
+        return true
+    elseif reply == "REG-NOEXIST" then
+        minux.debug("unregister:noexist","dhcp")
+        return "noexist"
+    else
+        minux.debug("unregister:E304:noreply", "dhcp")
+        return false, 304
+    end
+end
+function lookup(name)
+    expect(1,name,"string")
+    os.run({}, "/etc/auth-client/dhcplookup.sys" , name)
+end
+function dnslist()
+    rednet.send(_G.server, "DHCP-LIST")
+    data = {}
+    local data = netlib.gettable(_G.server, 3)
+    if data == false or data == nil then
+        print("DHCP sync fail")
+        minux.debug("DHCP:E:302:connect fail","dhcp")
+        return false
+    end
+    minux.debug("dhcp:list:data sent","dhcp")
+    return data
+end
+-- end auth api's

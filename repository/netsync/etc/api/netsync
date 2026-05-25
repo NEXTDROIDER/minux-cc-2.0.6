@@ -1,0 +1,211 @@
+-- netsync api file
+-- default settings in case of missing or incomplete config file, actual settings are in "cfgfile"
+local cfgfile = "/usr/netsync/netsync.cfg" -- the config file containing settings, edit this file.
+local syncfile = "/usr/netsync/synclist.db" -- user dependant list of sync files.
+local serverpath = "/netsync/" -- where to store the data on the server.
+local localpath = "/" -- where to write the data on local pc.
+function firstrun()
+    syncfile = "/home/".._G.login.."/netsync/synclist.db"
+    cfgfile = "/home/".._G.login.."/netsync/netsync.cfg"
+    if fs.exists(cfgfile) == false then
+        local tempfile = fs.open(cfgfile,"w")
+        tempfile.writeLine("autosync=disabled")
+        tempfile.writeLine("autodelete=enabled")
+        tempfile.writeLine("serverpath="..serverpath)
+        tempfile.writeLine("localpath="..localpath)
+        tempfile.close()
+    end
+    if fs.exists(syncfile) == false then
+        local tempfile = fs.open(syncfile,"w")
+        tempfile.writeLine(syncfile)
+        tempfile.writeLine(cfgfile)
+        tempfile.close()
+    end
+end
+-- get settings from nfserver
+function checksettings()
+    cfgfile = "/home/".._G.login.."/netsync/netsync.cfg"
+    if fs.exists(cfgfile) ~= true then firstrun() end
+    local nfserver = netsync.getconfig("nfserver")
+    netfolder.getfile(nfserver,cfgfile,cfgfile)
+end
+-- get config
+function getconfig(option)
+    expect(1,option,"string")
+    syncfile = "/home/".._G.login.."/netsync/synclist.db"
+    cfgfile = "/home/".._G.login.."/netsync/netsync.cfg"
+    if fs.exists(syncfile) == false then firstrun() end
+    if option == "autosync" then
+        if minux.findline(cfgfile,"autosync=enabled") ~= false then
+            return true
+        else
+            return false
+        end
+    elseif option == "autodelete" then
+        if minux.findline(cfgfile,"autodelete=enabled") ~= false then
+            return true
+        else
+            return false
+        end
+    elseif option == "syncfile" then return syncfile
+    elseif option == "cfgfile" then
+        local settingline = minux.findline(cfgfile,"syncfile=")
+        return cfgfile
+    elseif option == "nfserver" then
+        local settingline = minux.findline(cfgfile,"nfserver=")
+        if settingline == false or settingline == nil then return false end
+        local nfs = minux.printline(cfgfile, settingline)
+        local totalstringcount = string.len(nfs)
+        nfserver = nfs:sub(10 , totalstringcount)
+        return nfserver
+    elseif option == "serverpath" then
+        local settingline = minux.findline(cfgfile,"serverpath=")
+        local serverpath = minux.printline(cfgfile, settingline)
+        local totalstringcount = string.len(serverpath)
+        serverpath = serverpath:sub(12,totalstringcount)
+        return serverpath
+    elseif option == "localpath" then
+        local settingline = minux.findline(cfgfile,"localpath=")
+        local localpath = minux.printline(cfgfile, settingline)
+        local totalstringcount = string.len(localpath)
+        localpath = localpath:sub(11,totalstringcount)
+        return localpath
+    end
+end
+-- set config
+function setconfig(setting,option)
+    expect(1,setting,"string")
+    expect(2,option,"string")
+    syncfile = "/home/".._G.login.."/netsync/synclist.db"
+    cfgfile = "/home/".._G.login.."/netsync/netsync.cfg"
+    if fs.exists(cfgfile) == false then firstrun() end
+    if setting == "autosync" then
+        if minux.findline(cfgfile,"autosync=enabled") ~= false then
+            if option == "enabled" then
+                return true
+            else
+                local settingline = minux.findline(cfgfile,"autosync=")
+                minux.removeline(cfgfile,settingline)
+                minux.insertline(cfgfile,"autosync="..option)
+                return true
+            end
+        else
+            if option == "disabled" then
+                return true
+            else
+                local settingline = minux.findline(cfgfile,"autosync=")
+                if settingline ~= false then minux.removeline(cfgfile,settingline) end
+                minux.insertline(cfgfile,"autosync="..option)
+                return true
+            end
+            return false
+        end
+    elseif setting == "nfserver" then
+        local settingline = minux.findline(cfgfile,"nfserver=")
+        if settingline ~= false then
+            minux.removeline(cfgfile,settingline)
+        end
+        minux.insertline(cfgfile,"nfserver="..option)
+        return true
+    elseif setting == "serverpath" then
+        local settingline = minux.findline(cfgfile,"serverpath=")
+        minux.removeline(cfgfile,settingline)
+        minux.insertline(cfgfile,"serverpath="..option)
+        return true
+    elseif setting == "autodelete" then
+        local settingline = minux.findline(cfgfile,"autodelete=")
+        minux.removeline(cfgfile,settingline)
+        minux.insertline(cfgfile,"autodelete="..option)
+        return true
+    elseif setting == "localpath" then
+        local settingline = minux.findline(cfgfile,"localpath=")
+        minux.removeline(cfgfile,settingline)
+        minux.insertline(cfgfile,"localpath="..option)
+        return true
+    end
+    return false
+end
+-- reset configuration
+function reset()
+    syncfile = "/home/".._G.login.."/netsync/synclist.db"
+    cfgfile = "/home/".._G.login.."/netsync/netsync.cfg"
+    serverpath = "/netsync/"
+    localpath = "/"
+    fs.delete(cfgfile)
+    fs.delete(syncfile)
+    local tempfile = fs.open(cfgfile,"w")
+    tempfile.writeLine("autosync=disabled")
+    tempfile.writeLine("serverpath="..serverpath)
+    tempfile.writeLine("localpath="..localpath)
+    tempfile.close()
+    local tempfile = fs.open(syncfile,"w")
+    tempfile.writeLine(syncfile)
+    tempfile.writeLine(cfgfile)
+    tempfile.close()
+    return true
+end
+-- add a file/folder to sync list
+function add(file)
+    expect(1,file,"string")
+    syncfile = "/home/".._G.login.."/netsync/synclist.db"
+    cfgfile = "/home/".._G.login.."/netsync/netsync.cfg"
+    local synclist = minux.readtable(syncfile)
+    local tbfound = minux.tablecontains(synclist,file)
+    if tbfound == nil or tbfound == false then
+        minux.insertline(syncfile,file)
+    end
+    return true
+end
+-- remove a file/folder frol sync list
+function del(file)
+    expect(1,file,"string")
+    syncfile = "/home/".._G.login.."/netsync/synclist.db"
+    cfgfile = "/home/".._G.login.."/netsync/netsync.cfg"
+    local synclist = minux.readtable(syncfile)
+    local tbfound = minux.tablecontains(synclist,file)
+    if tbfound ~= nil and tbfound ~= false then
+        minux.removeline(syncfile,tbfound)
+    end
+    return true
+end
+-- save, upload to server
+function save()
+    syncfile = "/home/".._G.login.."/netsync/synclist.db"
+    cfgfile = "/home/".._G.login.."/netsync/netsync.cfg"
+    local synctb = minux.readtable(syncfile)
+    local ctr = 1
+    local nfserver = netsync.getconfig("nfserver")
+    local serverpath = netsync.getconfig("serverpath")
+    local localpath = netsync.getconfig("localpath")
+    -- first clear out the netfolder server
+    if getconfig("autodelete") == true then netfolder.delete(nfserver, "/") end
+    while synctb[ctr] ~= nil do
+        if fs.isDir(synctb[ctr]) == true then
+            netfolder.putfolder(nfserver,synctb[ctr], synctb[ctr])
+        elseif fs.exists(synctb[ctr]) then
+            netfolder.putfile(nfserver,synctb[ctr],synctb[ctr])
+        end
+        ctr = ctr + 1
+    end
+    return true
+end
+-- load, download from server
+function load()
+    syncfile = "/home/".._G.login.."/netsync/synclist.db"
+    cfgfile = "/home/".._G.login.."/netsync/netsync.cfg"
+    local nfserver = netsync.getconfig("nfserver")
+    local serverpath = netsync.getconfig("serverpath")
+    local localpath = netsync.getconfig("localpath")
+    local syncfile = netsync.getconfig("syncfile")
+    netfolder.getfile(nfserver,syncfile,syncfile)
+    local synctb = minux.readtable(syncfile)
+    local ctr = 1
+    while synctb[ctr] ~= nil do
+        local reply = netfolder.getfile(nfserver,synctb[ctr],synctb[ctr])
+        if reply == 706 then
+            netfolder.getfolder(nfserver, synctb[ctr], synctb[ctr])
+        end
+        ctr = ctr + 1
+    end
+    return true
+end

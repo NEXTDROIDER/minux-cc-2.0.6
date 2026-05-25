@@ -1,0 +1,15 @@
+open, a simple door opener
+executable location: '/bin/open.sh'  alias:'open'
+open is part of the 'open' app
+
+syntax: 'open doorname duration'
+duration is optional, use 0 for toggle
+
+door names can be searched with 'dhcp lookup'
+any registered name can be called, if there
+is the program "door" on the other side then 
+they will see if the current user is allowed
+to open that door attached, and then open it.
+
+very simple, very robust.
+duration is in seconds, use 0 to toggle it on/off

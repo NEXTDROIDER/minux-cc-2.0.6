@@ -1,0 +1,10 @@
+AIF=true
+https://minux.cc/apt/2.0/soft/
+version=1.0
+author=ProSpace
+php=true
+[filelist]
+/etc/passdoor/install.sys
+/etc/apt/clean/passdoor.cln
+/etc/apt/boot/passdoor.db
+/etc/man/passdoor.man

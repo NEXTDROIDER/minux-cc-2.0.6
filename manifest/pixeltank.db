@@ -1,0 +1,12 @@
+AIF=true
+https://minux.cc/apt/2.0/soft/
+version=1.0.1
+author=Mr_Octopus
+php=true
+[filelist]
+/bin/pixeltank.sh
+/gbin/pixeltank.exe
+/etc/pixeltank/installer.sys
+/etc/apt/alias/pixeltank.al
+/etc/man/pixeltank.man
+/etc/apt/cleanup/pixeltank.db

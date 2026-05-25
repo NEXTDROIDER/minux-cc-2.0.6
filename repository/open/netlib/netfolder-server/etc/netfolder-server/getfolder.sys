@@ -1,0 +1,92 @@
+-- getfolder netfolder script server side
+-- this tries to recursively list a folder and send every file in there trough getfile.
+args = {...}
+clientid = tonumber(args[1])
+localpath = nil
+serverpath = nil
+templogin = nil
+temppass = nil
+
+--catch errors and contact fileserver
+if clientid == nil or clientid == "" then
+	print("putfolder:no input")
+	return 0
+end
+
+--retrieve data
+temp, localpath = rednet.receive(1)
+temp, serverpath = rednet.receive(1)
+temp, templogin = rednet.receive(1)
+temp, temppass = rednet.receive(1)
+rednet.send(clientid , localpath)
+rednet.send(clientid , serverpath)
+rednet.send(clientid , templogin)
+rednet.send(clientid , temppass)
+temp, data = rednet.receive(1)
+if data ~= "SYNC-SUCC" then
+	print("getfolder data sync failed")
+	return 0
+end
+
+-- check username
+_G.validlogin = false
+shell.run("/etc/minux-main/sys/nlogin.sys "..templogin.." "..temppass)
+if _G.validlogin ~= true then
+	print("ALERT: Password missmatch!")
+	print("U-"..templogin.." ID-"..clientid)
+	rednet.send(clientid, "ALERT")
+	return 0
+end
+
+-- if folder doesn't exist
+if serverpath == nil then serverpath = "/" end
+if fs.isDir(_G.netfolderroot.."/"..templogin..serverpath..localpath) == false then 
+	print("getfolder:noexist:U-"..templogin.." F-".._G.netfolderroot.."/"..templogin..serverpath..localpath)
+	rednet.send(clientid , "NOEXIST")
+	return 0
+end
+
+-- we count how many characters we'll have to remove from the list again
+
+totalstringcount = string.len(_G.netfolderroot) + string.len(templogin)
+
+-- first we build a list of the folder
+fs.delete("/temp/ls/files.ls")
+print("building filelist for U-"..templogin)
+print("T-".._G.netfolderroot.."/"..templogin.."/"..serverpath)
+shell.run("/etc/minux-main/ls/ls.sys ".._G.netfolderroot.."/"..templogin.."/"..serverpath)
+if fs.exists("/temp/ls/files.ls") then
+	filelist = fs.open("/temp/ls/files.ls" , "r")
+else
+	print("Build failed") 
+	rednet.send(clientid , "LSFAIL")
+	return 0
+end
+
+-- now we clear out the server's root path, we count how much to remove
+newlist = fs.open("/temp/netfolder/files.tmp" ,"w")
+line = filelist.readLine()
+totalstringcount = totalstringcount +3
+stringcount = 1
+while line ~= nil do
+-- where does string end?
+	stringcount = string.len(line)
+-- now we remove
+	newline = line:sub(totalstringcount , stringcount)
+	newlist.writeLine(newline)
+	line = filelist.readLine()
+end
+newlist.close()
+filelist.close()
+
+-- read trough the file list and send it to the client.
+filelist = fs.open("/temp/netfolder/files.tmp" , "r")
+data = filelist.readAll()
+rednet.send(clientid, data)
+temp, data2 = rednet.receive(1)
+if data == data2 then
+	rednet.send(clientid, "SYNC-SUCC")
+else
+	rednet.send(clientid, "SYNC-FAIL")
+	print("Data sync fail")
+end

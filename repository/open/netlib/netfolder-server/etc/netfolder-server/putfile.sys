@@ -1,0 +1,39 @@
+-- putfile netfolder server side
+
+args = {...}
+clientid = tonumber(args[1])
+
+-- catch bad input
+if clientid == nil or clientid == "" then print("getfile:Invalid input") return 0 end
+
+-- listen to the data, bounce, then wait for verify
+tempid, temppath = rednet.receive(1)
+tempid, templogin = rednet.receive(1)
+tempid, temppass = rednet.receive(1)
+rednet.send(clientid , temppath)
+rednet.send(clientid , templogin)
+rednet.send(clientid , temppass)
+tempid, data = rednet.receive(1)
+if data ~= "SYNC-SUCC" then print("Sync failed ID:"..clientid) return 0 end
+
+-- verify user data with AUTH
+-- we try to log in as the user
+shell.run("/etc/minux-main/sys/nlogin.sys "..templogin.." "..temppass)
+if _G.validlogin ~= true then
+	print("Access denied:U-"..templogin.." ID-"..clientid)
+	rednet.send(clientid , "NETFOLDER-DENIED")
+	return 0
+end
+
+-- we sent all clear and bounce the file for verify
+rednet.send(clientid, "NETFOLDER-PUTFILE")
+tempid, filedata = rednet.receive(1)
+rednet.send(clientid, filedata)
+tempid, data = rednet.receive(1)
+if data ~= true then print("sync failed") return 0 end
+
+-- we write the file
+print("Putfile U-"..templogin.." F-"..temppath)
+tempfile = fs.open(_G.netfolderroot.."/"..templogin.."/"..temppath , "w")
+tempfile.write(filedata)
+tempfile.close()

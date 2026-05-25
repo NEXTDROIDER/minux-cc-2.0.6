@@ -1,0 +1,45 @@
+-- putfile netfolder server side
+args = {...}
+clientid = tonumber(args[1])
+-- catch bad input
+if clientid == nil or clientid == "" then print("getfile:Invalid input") return 0 end
+-- reply to the client and connect.
+local creply = netlib.sendstring(clientid,"NETFOLDER-ACK")
+if creply ~= true then
+	minux.debug("putfile:ack-fail","netfolder")
+	return 702
+end
+-- listen to the data, it will be a table
+local udata = netlib.gettable(clientid,3)
+if udata == nil or udata == false then
+	minux.debug("putfile:E702:tablefail","netfolder")
+	return 702
+end
+local temppath = udata[1]
+local templogin = udata[2]
+local temppass = udata[3]
+minux.debug("putfile:"..udata[1]..":"..udata[2]..":"..udata[3])
+-- verify user data with AUTH
+local ldata = minux.checkuser(udata[2],udata[3])
+if ldata[4] ~= true then
+	minux.monitorprint("Access denied:U-"..templogin.." ID-"..clientid)
+	minux.debug("Access denied:U-"..templogin.." ID-"..clientid,"netfolder")
+	rednet.send(clientid , "NF-704")
+	return 704
+end
+-- we can now receive the file
+local lreply = netlib.sendstring(clientid,"NF-PF-ACCEPT")
+if lreply ~= true then
+	minux.debug("putfile:E702:accept-nosync","netfolder")
+	return 702
+end
+local fdata = netlib.getstring(clientid,3)
+if fdata == nil or fdata == false then
+	minux.debug("putfile:E702:file-data-sync","netfolder")
+	return 702
+end
+-- we write the file
+minux.debug("Putfile U-"..templogin.." F-"..temppath,"netfolder")
+tempfile = fs.open(_G.netfolderroot.."/"..templogin.."/"..temppath , "w")
+tempfile.write(fdata)
+tempfile.close()

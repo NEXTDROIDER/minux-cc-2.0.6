@@ -1,0 +1,10 @@
+	--install cryptofolder
+	
+	if fs.exists("/etc/cryptofolder/cryptofolder-config-generator.lua") then fs.delete("/etc/cryptofolder/cryptofolder-config-generator.lua") end
+	shell.run("wget https://codeberg.org/Mensh123/Cryptofolder/raw/branch/main/cryptofolder-config-generator.lua /etc/cryptofolder/cryptofolder-config.lua")
+	if fs.exists("/etc/cryptofolder/cryptofolder.lua") then fs.delete("/etc/cryptofolder/cryptofolder.lua")end
+	shell.run("wget https://codeberg.org/Mensh123/Cryptofolder/raw/branch/main/cryptofolder.lua /etc/cryptofolder/cryptofolder.lua")
+	if fs.exists("/etc/cryptofolder/cryptofolder-explorer.lua") then fs.delete("/etc/cryptofolder/cryptofolder-explorer.lua") end
+	shell.run("wget https://codeberg.org/Mensh123/Cryptofolder/raw/branch/main/cryptofolder-explorer.lua /etc/cryptofolder/cryptofolder-explorer.lua")
+	if fs.exists("/etc/cryptofolder/cryptoNet.lua") then fs.delete("/etc/cryptofolder/cryptoNet.lua") end
+	shell.run("wget https://raw.githubusercontent.com/SiliconSloth/CryptoNet/master/cryptoNet.lua /etc/cryptofolder/cryptoNet.lua")

@@ -1,0 +1,10 @@
+groupjoin, easy command to add user membership to a group
+executable location: '/bin/groupjoin.sh'  alias: 'groupjoin'
+groupjoin is part of the 'auth-client' app
+
+used to quickly grant group membership
+
+syntax: 'groupjoin groupname username'
+
+only group makers or admins can do this action.
+users need to be logged in and networked to adjust a group.

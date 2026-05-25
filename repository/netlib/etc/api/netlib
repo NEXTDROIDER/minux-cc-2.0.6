@@ -1,0 +1,351 @@
+-- minux netlib api
+-- basic protocol meant for minux rednet communication, basics on top and advanced on bottom.
+-- written by the minux team.
+
+-- ping function, client sideused to check if a system is live
+function ping(client)
+    expect(1, client, "number")
+    if client == os.getComputerID() == true then return true end
+    rednet.send(client, "ping")
+    local attempt = 0
+    local keepalive = true
+    local response = false
+    local tempid = false
+    while attempt ~= 3 and keepalive == true do
+        tempid, response = rednet.receive(1)
+        if tempid == client then
+            keepalive = false
+        else
+            attempt = attempt + 1
+        end
+    end
+    if response == nil then
+           response = false
+    end
+    return response
+end
+-- ping function, used to check if a system is live
+function getping(client)
+    expect(1, client, "number")
+    rednet.send(client, true)
+    return true
+end
+-- sendstring, used to send a single string with verification
+function sendstring(client, data)
+    expect(1,client, "number")
+    expect(2,data,"string")
+    if client == os.getComputerID() then
+        _G.transferstring = data
+        rednet.send(client, "wakeup!")
+        return true
+    else
+        response = false
+        local attempt = 0
+        while response == false and attempt ~= 3 do
+            attempt = attempt + 1
+            rednet.send(client, data)
+            local tempclient, tempdata = rednet.receive(1)
+            if tempdata == data then
+                response = true
+            end
+            if client == os.getComputerID() == true then response = true end
+            rednet.send(client, response)
+        end
+    end
+    return response
+end
+-- getstring, used to send a single string with verification
+function getstring(client, timeout)
+    expect(1, client, "number")
+    expect(2, timeout, "number", "nil")
+    local tempid, tempdata = rednet.receive(timeout)
+    if tempid == client then
+        rednet.send(client, tempdata)
+        tempid , verdata = rednet.receive(1)
+        if verdata == nil then tempdata = false end
+    end
+    if _G.transferstring ~= nil then
+        tempdata = _G.transferstring
+        _G.transferstring = nil
+    end
+    return tempdata
+end
+-- sendtable, used to send a table
+function sendtable(client, data)
+    expect(1,client, "number")
+    expect(2,data,"table")
+    local tempfile = fs.open("/temp/netlib/table.conv","w")
+    count = 1
+    while data[count] ~= nil do
+        if data[count] ~= nil then tempfile.writeLine(data[count]) end
+        count = count +1
+    end
+    tempfile.close()
+    local tempfile = fs.open("/temp/netlib/table.conv","r")
+    local data = tempfile.readAll()
+    tempfile.close()
+    if client == os.getComputerID() == true then
+        _G.transferstring = data
+        rednet.send(client, "wakeup!")
+        return true
+    else
+        local attempt = 0
+        local keepalive = true
+        while keepalive == true and attempt ~= 3 do
+            rednet.send(client, data)
+            tempid, tempdata = rednet.receive(1)
+            if tempdata == data then
+                rednet.send(client, true)
+                keepalive = false
+                return true
+            end
+        end
+    end
+    if keepalive == true then return false end
+end
+-- gettable, used to send a table with verification
+function gettable(client, timeout)
+    expect(1,client,"number")
+    expect(2,timeout,"number","nil")
+    local tempid, tempdata = rednet.receive(timout)
+    if tempid == client or _G.transferstring ~= nil then
+        if _G.transferstring ~= nil then
+            tempdata = _G.transferstring
+            _G.transferstring = nil
+        else
+            rednet.send(client, tempdata)
+            tempid , verdata = rednet.receive(1)
+            if verdata ~= true then
+                return false
+            end
+        end
+        local tempfile = fs.open("/temp/netlib/table.tmp","w")
+        tempfile.write(tempdata)
+        tempfile.close()
+        tempfile = fs.open("/temp/netlib/table.tmp","r")
+        count = 1
+        returntable = {}
+        returntable[count] = tempfile.readLine()
+        while returntable[count] ~= nil do
+            minux.debug("gettable:data:"..count..":"..returntable[count], "netlib")
+            count = count + 1
+            returntable[count] = tempfile.readLine()
+        end
+        tempfile.close()
+        return returntable
+    end
+    return false
+end
+-- from here you'll find a more "advanced" method, it's more complex but also more efficient, intended for systems that might get busy.
+-- these functions are harder to understand and use but allow to keep track of your connections better.
+-- generate a session id, this is used to differentiate between connections. can be recycled.
+function makesid()
+    local sid = minux.rng()
+    return sid
+end
+-- send session id back to the requesting system.
+function sendsid(client)
+    expect(1,client,"number")
+    local sid = tostring(makesid())
+    sendstring(client,sid)
+    return sid
+end
+-- receive session id from a server, we want to server to generate unique id's.
+function getsid(client)
+    expect(1,client,"number")
+    rednet.send(client,"getSID")
+    local sid = getstring(client,3)
+    if sid == false or sid == nil then return 1100 end
+    sid = tonumber(sid)
+    return sid
+end
+-- open connection and set session + key, this will be used by senddata and getdata
+function connect(client, sid, key)
+    expect(1,client,"number")
+    expect(2,sid,"number")
+    expect(3,key,"number")
+    -- prepaire packet
+    local tpack = {}
+    tpack[1] = sid
+    tpack[2] = key
+    minux.writetable("/temp/netlib/cp.dat", tpack)
+    local tf = fs.open("/temp/netlib/cp.dat", "r")
+    local td = tf.readAll()
+    tf.close()
+    rednet.send(client,"NL:CON:OPEN")
+    local tid, r = rednet.receive(1)
+    if r ~= "NL:CON:ACK" then return 1101 end
+    rednet.send(client,td)
+    local tid, r = rednet.receive(1)
+    if r ~= td then return 1102 end
+    rednet.send(client,"NL:CONN:SUC")
+    return true
+end
+-- open a connection server side
+function opensocket(client)
+    expect(1,client,"number")
+    rednet.send(client,"NL:CON:ACK")
+    local tid, td = rednet.receive(1)
+    rednet.send(client,td)
+    local tid, r = rednet.receive(1)
+    if r ~= "NL:CONN:SUC" then return 1103 end
+    local tf = fs.open("/temp/netlib/rc.dat","w")
+    tf.write(td)
+    tf.close()
+    local td = minux.readtable("/temp/netlib/rc.dat")
+    if td[2] == nil then return 1104 end
+    local tf = fs.open("/temp/netlib/conn/"..td[1],"w")
+    tf.writeLine(td[2])
+    tf.writeLine(client)
+    tf.writeLine("60")
+    tf.close()
+    return td[1]
+end
+-- call disconnect, server side. checks before we end.
+function closesocket(client)
+    expect(1,client,"number")
+    rednet.send(client,"NL:DIS:ACK")
+    local tid, sid = rednet.receive(1)
+    if sid == nil or sid == false then return 1108 end
+    if fs.exists("/temp/netlib/conn/"..sid) == true then
+        local cd = minux.readtable("/temp/netlib/conn/"..sid)
+        local oid = tonumber(cd[2])
+        if oid ~= client then
+            rednet.send(client,"NL:DIS:DEN")
+            return 1105
+        end
+        if fs.exists("/temp/netlib/conn/"..sid) then
+            endsocket(sid)
+            rednet.send(client,"NL:DIS:SUC")
+            return true
+        end
+    end
+    rednet.send(client,"NL:DIS:NEX")
+    return 1106
+end
+-- end socket, can be called by closesocket or a timeout script.
+function endsocket(sid)
+    expect(1,sid,"number")
+    if fs.exists("/temp/netlib/conn/"..sid) then
+        fs.delete("/temp/netlib/conn/"..sid)
+        return true
+    end
+    return 1107
+end
+-- call disconnect, client side
+function disconnect(client,sid)
+    expect(1,client,"number")
+    expect(2,sid,"number")
+    rednet.send(client,"NL:DIS:REQ")
+    local tid, r = rednet.receive(1)
+    if r ~= "NL:DIS:ACK" then return 1109 end
+    rednet.send(client,sid)
+    tid, r = rednet.receive(1)
+    if r == "NL:DIS:SUC" then return true
+    elseif r == "NL:DIS:NEX" then return 1110
+    elseif r == "NL:DIS:DEN" then return 1111
+    else return 1112
+    end
+end
+-- clean up old connections, this times out dead connections.
+function cleanup()
+    if fs.exists("/temp/netlib/conn/") ~= true then return true end
+    local filelist = fs.list("/temp/netlib/conn/")
+    local fscount = 1
+    local fd = {}
+    while filelist[fscount] ~= nil do
+        fd = minux.readtable("/temp/netlib/conn/"..filelist[fscount])
+        local td = tonumber(fd[3])
+        if td == 1 then
+            endsocket(tonumber(filelist[fscount]))
+            return filelist[fscount]
+        else
+            fd[3] = td - 1
+            minux.writetable("/temp/netlib/conn/"..filelist[fscount], fd)
+        end
+        fscount = fscount + 1
+    end
+    return true
+end
+-- reset a connection timeout
+function timeout(sid)
+    expect(1,sid,"number")
+    if fs.exists("/temp/netlib/conn/"..sid) then
+        local fd = minux.readtable("/temp/netlib/conn/"..sid)
+        fd[3] = "60"
+        minux.writetable("/temp/netlib/conn/"..sid, fd)
+        return true
+    else
+        return false
+    end
+end
+-- send data to a connected system
+function senddata(client, sid, key, data)
+    expect(1,client,"number")
+    expect(2,sid,"number")
+    expect(3,key, "number")
+    expect(4,data,"string")
+    -- first make our package and encrypt the data
+    local bt = {}
+    bt[1] = sid
+    bt[2] = data
+    minux.writetable("/temp/netlib/sd.dat",bt)
+    local tf = fs.open("/temp/netlib/sd.dat","r")
+    local sd = tf.readAll()
+    tf.close()
+    -- send sid to the receiver, await reaction.
+    rednet.send(client, sid)
+    local tid, r = rednet.receive(1)
+    if r == "NL:ACK" then
+        -- we send the payload, server decrypts and confirms.
+        rednet.send(client,sd)
+        tid, r = rednet.receive(1)
+        if r == sd then rednet.send(client,"NL:SD:SUCC") return true
+        else rednet.send(client, "NL:SD:FAIL") return 1115
+    end
+    -- if we fail, we break
+    elseif r == false or r == nil then return 1113
+    elseif r == "NL:NC" then return 1114
+    else return 1116
+    end
+end
+--receive data from a connected system
+function getdata(client,sid,timeout)
+    expect(1,client,"number")
+    expect(2,sid,"number")
+    expect(3,timeout,"number","nil")
+    -- double check if sid exists and timeout is valid
+    if fs.exists("/temp/netlib/conn/"..sid) == false then return 1117 end
+    if timeout == nil then timeout = 3 end
+    -- open connection state and load data
+    local fd = minux.readtable("/temp/netlib/conn/"..sid)
+    rednet.send(client,"NL:ACK")
+    -- we start a loop, we break at timeout or at data received. this helps with busy systems
+    local c = true
+    local ct = 0
+    local r = false
+    local tid = 0
+    while c == true do
+        ct = ct + 1
+        if ct == timeout then return 1118 end
+        tid, r = rednet.receive(1)
+        -- if no data, break now or we die
+        if r == false or r == nil then return 1119 end
+        -- if we have a reply, we should check if it's our client id.
+        local tf = fs.open("/temp/netlib/gd.dat","w")
+        tf.write(r)
+        tf.close()
+        -- if clients match, we should have our payload. break the loop and continue.
+        if tonumber(fd[2]) == tid then c = false end
+    end
+    -- reply to the client for sync verification, this ensures our data is correct.
+    rednet.send(client, r)
+    tid, fr = rednet.receive(1)
+    -- catch fail
+    if fr == "NL:SD:FAIL" then return 1120
+    elseif fr ~= "NL:SD:SUCC" then return 1121 end
+    -- read package and return payload
+    local dt = minux.readtable("/temp/netlib/gd.dat")
+    -- local payload = minux.decrypt(dt[2],tonumber(fd[1]))
+    return dt[2]
+end

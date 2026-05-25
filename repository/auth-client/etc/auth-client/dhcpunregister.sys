@@ -1,0 +1,47 @@
+-- dhcp unregister request client side
+args = {...}
+sysid = args[1]
+minux.debug("unregister:starting" , "auth")
+
+-- catch invalid data
+if _G.validlogin == nil or _G.login == nil or _G.masterpass == nil then print("Not logged in") minux.debug("unregister:E:300:denied" , "auth")return 0 end
+if sysid == nil or sysid == "" then sysid = os.getComputerID() end
+minux.debug("unregister:"..sysid , "auth")
+
+-- send request and listen for response
+minux.debug("unregister:contacting dhcp" , "auth")
+rednet.send(_G.server , "DHCP-UREG")
+tempid, tempdata = rednet.receive(1)
+if tempdata ~= "DHCP-REG-ACK" then minux.debug("unregister:E:301:dhcp-noreply" , "auth") print("reg:dhcp busy or not available") return 0 end
+
+-- now send data and let it bounce back for verification
+minux.debug("unregister:contacting auth" , "auth")
+rednet.send(_G.server , _G.login)
+rednet.send(_G.server , _G.masterpass)
+rednet.send(_G.server , sysid)
+tempid, templogin = rednet.receive(1)
+tempid, temppass = rednet.receive(1)
+tempid, tempname = rednet.receive(1)
+minux.debug("unregister:verify" , "auth")
+if tempname ~= sysid or temppass ~= _G.masterpass or templogin ~= _G.login then
+	minux.debug("unregister:E:302:sync-fail" , "auth")
+	print("data sync failed, aborting")
+	rednet.send(_G.server , "SYNC-FAIL")
+	return 0
+end
+minux.debug("unregister:data-sync" , "auth")
+rednet.send(_G.server, "SYNC-TRUE")
+
+-- await response
+tempid, tempdata = rednet.receive(3)
+if tempdata == "REG-ACCEPT" then print("system removed from registry") minux.debug("unregister:accept" , "auth")
+elseif tempdata == "REG-NOEXIST" then print("invalid id") minux.debug("unregister:noexist" , "auth")
+elseif tempdata == "REG-DENIED" then print("Access denied") minux.debug("unregister:denied!" , "auth")
+elseif tempdata == "REG-ALERT" then 
+	minux.debug("unregister:E:303:denied!" , "warning")
+	print ("User data invalid, aborting session")
+	_G.validlogin = nil
+	_G.admin = nil
+	_G.login = nil
+	_G.masterpassword = nil
+else print("No response, check dhcp server output") minux.debug("unregister:E:306:dhcp-noreply" , "auth") end

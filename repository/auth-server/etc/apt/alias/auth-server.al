@@ -1,0 +1,1 @@
+if fs.exists("/bin/auth-server.sh") then shell.setAlias("auth-server" , "/bin/auth-server.sh") end

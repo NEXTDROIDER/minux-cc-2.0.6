@@ -1,0 +1,47 @@
+-- getfile netfolder server side
+args = {...}
+clientid = tonumber(args[1])
+-- catch bad input
+if clientid == nil or clientid == "" then print("getfile:Invalid input") return 702 end
+-- reply confirm
+netlib.sendstring(clientid,"NF-GET-ACK")
+--listen for file data table, 1-filepath, 2-login, 3-pass
+local cdata = netlib.gettable(clientid,3)
+if cdata == false or cdata == nil then
+	minux.debug("data transfer Error, e:702")
+	return 702
+end
+temppath = cdata[1]
+templogin = cdata[2]
+temppass = cdata[3]
+-- verify user data with AUTH
+local ldata = minux.checkuser(templogin, temppass)
+if ldata[4] ~= true then
+	print("Access denied:U-"..templogin.." ID-"..clientid)
+	rednet.send(clientid , "NETFOLDER-DENIED")
+	minux.debug("E703","netfolder")
+	return 703
+end
+-- we check if the file exists
+local filepath = _G.netfolderroot.."/"..templogin.."/"..temppath
+if fs.exists(filepath) == false then
+	print("704:U-"..templogin.." F-"..temppath)
+	netlib.sendstring(clientid , "NETFOLDER-NOEXIST")
+	minux.debug("E704:not found","netfolder")
+	return 704
+elseif fs.isDir(filepath) then
+	print("706:U-"..templogin.." F-"..temppath)
+	netlib.sendstring(clientid , "NETFOLDER-ISDIR")
+	minux.debug("E706:isdir","netfolder")
+	return 706
+else
+	netlib.sendstring(clientid, "NETFOLDER-SENDFILE")
+	print("Sendfile U-"..templogin.." F-"..temppath)
+	minux.monitorprint("Sendfile U-"..templogin.." F-"..temppath)
+	minux.debug("sendfile","netfolder")
+end
+-- we send the file
+local tempfile = fs.open(filepath , "r")
+local filedata = tempfile.readAll()
+tempfile.close()
+netlib.sendstring(clientid, filedata)

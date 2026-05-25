@@ -1,0 +1,1 @@
+if fs.exists("/bin/music.sh") then shell.setAlias("music" , "/bin/music.sh") end

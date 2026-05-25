@@ -1,0 +1,25 @@
+auth-client, client side controller app for the auth server
+executable location: '/bin/auth-client.sh'  alias: 'auth-client'
+auth-client is part of the 'auth-client' app
+
+this script is used to control the auth server, 
+for now, just making or deleting users
+
+syntax: 'auth-client adduser username password'
+
+- adduser username password
+	adds a user to the network
+- addadmin username password
+	adds an admin to the network
+- deluser username
+	deletes a user from the network
+- setpass username password
+	changes a user's username
+- setowner systemname systemgroup
+	sets the system to owned by the
+	currently logged in user.
+	systemgroup is optional and
+	grants user rights to members.
+- delowner
+	deletes this system from the auth
+	server, clearing it's file.

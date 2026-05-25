@@ -1,0 +1,13 @@
+AIF=true
+https://minux.cc/apt/2.0/soft/
+version=1.0.1
+author=minux-team
+php=true
+[depstart]
+auth-client
+[depstop]
+[filelist]
+/bin/open.sh
+/gbin/open.exe
+/etc/apt/alias/open.al
+/etc/man/open.man

@@ -1,0 +1,20 @@
+auth-group, client side controller app for groups on the auth server
+executable location: '/bin/auth-group.sh'  alias: 'auth-group'
+auth-group is part of the 'auth-client' app
+
+this script is used to manage groups on the auth server, 
+adding and deleting groups and managing their users.
+
+any logged in user can create a new group and gets marked "maker"
+only admins and makers can manage their groups.
+
+syntax: 'auth-group adduser groupname username'
+
+- adduser groupname username
+	adds a user to a group
+- deluser groupname username
+	deletes a user from a group
+- makegroup groupname
+	makes a new group called groupname
+- delgroup groupname
+	deletes the group called groupname

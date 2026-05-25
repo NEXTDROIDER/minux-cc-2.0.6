@@ -1,0 +1,1 @@
+if fs.exists("/bin/dhcp-server.sh") then shell.setAlias("dhcpd" , "/bin/dhcp-server.sh") end

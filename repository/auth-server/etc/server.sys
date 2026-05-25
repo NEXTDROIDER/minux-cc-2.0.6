@@ -1,0 +1,38 @@
+-- auth server app
+print("Starting auth server")
+minux.debug("auth:starting","auth")
+
+-- resetting crash counter since this system never really shuts down.
+tempfile = fs.open("/temp/minux/boot/fail4.tmp" ,"w")
+tempfile.write("0")
+tempfile.close()
+-- we listen for requests and launch them in a new shell
+_G.validloginenabled = true
+os.loadAPI("/etc/api/authserv")
+minux.debug("auth:listening for requests","auth")
+_G.authcrypt = false
+_G.authkey = 0
+if fs.exists("/usr/auth-server/data/crypt.db") then
+	local keyfile = fs.open("/usr/auth-server/data/crypt.db","r")
+	local tempkey = keyfile.readLine()
+	keyfile.close()
+	_G.authkey = tonumber(tempkey)
+	_G.authcrypt = true
+	minux.debug("START:Database encryption enabled","auth-server")
+	print("password file encryption enabled")
+else
+	minux.debug("START:Database encryption disabled","auth-server")
+	print("password file encryption disabled")
+end
+while _G.validloginenabled == true do
+	clientid, clientdata = rednet.receive(5)
+	-- if we hear anything, we forward it to handlerequest
+	if clientdata ~= false and clientdata ~= nil and clientdata ~= true then
+		shell.openTab("/etc/auth-server/handlerequests.sys "..clientid.." "..clientdata)
+		clientdata = nil
+	end
+end
+minux.debug("auth:shutting down","auth")
+os.unloadAPI("/etc/api/authserv")
+_G.authcrypt = nil
+_G.authkey = nil

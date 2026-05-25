@@ -1,0 +1,1790 @@
+local tArg = {...}
+local selfDelete = false -- if true, deletes extractor after running
+local file
+local outputPath = tArg[1] and shell.resolve(tArg[1]) or shell.getRunningProgram()
+local safeColorList = {[colors.white] = true,[colors.lightGray] = true,[colors.gray] = true,[colors.black] = true}
+local stc = function(color) if (term.isColor() or safeColorList[color]) then term.setTextColor(color) end end
+local choice = function()
+	local input = "yn"
+	write("[")
+	for a = 1, #input do
+		write(input:sub(a,a):upper())
+		if a < #input then
+			write(",")
+		end
+	end
+	print("]?")
+	local evt,char
+	repeat
+		evt,char = os.pullEvent("char")
+	until string.find(input:lower(),char:lower())
+	if verbose then
+		print(char:upper())
+	end
+	local pos = string.find(input:lower(), char:lower())
+	return pos, char:lower()
+end
+local archive = textutils.unserialize("{\
+  mainFile = false,\
+  compressed = false,\
+  data = {\
+    [ \"etc/apilib/palette.sys\" ] = \"--[[\\r\\\
+MIT License\\r\\\
+\\r\\\
+Copyright (c) 2017 CrazedProgrammer\\r\\\
+\\r\\\
+Permission is hereby granted, free of charge, to any person obtaining a copy\\r\\\
+of this software and associated documentation files (the \\\"Software\\\"), to deal\\r\\\
+in the Software without restriction, including without limitation the rights\\r\\\
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell\\r\\\
+copies of the Software, and to permit persons to whom the Software is\\r\\\
+furnished to do so, subject to the following conditions:\\r\\\
+\\r\\\
+The above copyright notice and this permission notice shall be included in all\\r\\\
+copies or substantial portions of the Software.\\r\\\
+\\r\\\
+THE SOFTWARE IS PROVIDED \\\"AS IS\\\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\\r\\\
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\\r\\\
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\\r\\\
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\\r\\\
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\\r\\\
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\\r\\\
+SOFTWARE.\\r\\\
+]]\\r\\\
+\\r\\\
+local args, pal = {...}, { }\\r\\\
+local palmap = { 32768, 4096, 8192, 2, 2048, 1024, 512, 256,\\r\\\
+                 128, 16384, 32, 16, 8, 4, 64, 1 }\\r\\\
+\\r\\\
+if not args[1] then\\r\\\
+    print(\\\"chpal <path>\\\\nchpal --export <path>\\\\nchpal --reset\\\")\\r\\\
+	return\\r\\\
+\\r\\\
+elseif args[1] == \\\"--export\\\" then\\r\\\
+	local path = shell.resolve(args[2])\\r\\\
+	local handle = fs.open(path, \\\"w\\\")\\r\\\
+	if not handle then\\r\\\
+		printError(\\\"Failed to write to file \\\\\\\"\\\"..path..\\\"\\\\\\\".\\\")\\r\\\
+		return\\r\\\
+	end\\r\\\
+	for i = 1, 16 do\\r\\\
+		local palr, palg, palb = term.getPaletteColor(palmap[i])\\r\\\
+		handle.writeLine(\\\"*.color\\\"..(i - 1)..\\\": #\\\"..\\r\\\
+		                 string.format(\\\"%02X%02X%02X\\\", palr * 255, palg * 255, palb * 255))\\r\\\
+	end\\r\\\
+	handle.close()\\r\\\
+	return\\r\\\
+\\r\\\
+elseif args[1] == \\\"--reset\\\" then\\r\\\
+    pal = { \\\"#191919\\\", \\\"#7F664C\\\", \\\"#57A64E\\\", \\\"#F2B233\\\", \\\"#3366CC\\\", \\\"#B266E5\\\", \\\"#4C99B2\\\", \\\"#999999\\\",\\r\\\
+	        \\\"#4C4C4C\\\", \\\"#CC4C4C\\\", \\\"#7FCC19\\\", \\\"#DEDE6C\\\", \\\"#99B2F2\\\", \\\"#E57FD8\\\", \\\"#F2B2CC\\\", \\\"#F0F0F0\\\" }\\r\\\
+\\r\\\
+else\\r\\\
+	local path = shell.resolve(args[1])\\r\\\
+	local handle = fs.open(path, \\\"r\\\")\\r\\\
+	if not handle then\\r\\\
+		printError(\\\"Palette file \\\\\\\"\\\"..path..\\\"\\\\\\\" not found.\\\")\\r\\\
+		return\\r\\\
+	end\\r\\\
+	local line = handle.readLine()\\r\\\
+	while line do\\r\\\
+		line = line:gsub(\\\"^%s*(.-)%s*$\\\", \\\"%1\\\") -- trim\\r\\\
+		if line:find(\\\"%*%.color%d%d*: \\\") then\\r\\\
+			index = tonumber(line:sub(8, (line:sub(9, 9) == \\\":\\\") and 8 or 9)) + 1\\r\\\
+			colour = line:sub(-7)\\r\\\
+			pal[index] = colour\\r\\\
+		end\\r\\\
+		line = handle.readLine()\\r\\\
+	end\\r\\\
+	handle.close()\\r\\\
+end\\r\\\
+\\r\\\
+for i = 1, 16 do\\r\\\
+	term.setPaletteColour(palmap[i], tonumber(pal[i]:sub(2), 16))\\r\\\
+end\",\
+    [ \"etc/apt/alias/apilib.al\" ] = \"-- apilib api's\\r\\\
+-- apilib variables\\r\\\
+_G.surfacepath = \\\"/etc/apilib/surface.sys\\\"\\r\\\
+_G.surface = dofile(_G.surfacepath)\\r\\\
+-- apilib alias\\r\\\
+if fs.exists(\\\"/etc/apilib/palette.sys\\\") then shell.setAlias(\\\"palette\\\" , \\\"/etc/apilib/palette.sys\\\") end\\r\\\
+-- apilib api\\r\\\
+os.loadAPI(\\\"/etc/apilib/cprint\\\")\\r\\\
+os.loadAPI(\\\"/etc/apilib/apilib\\\")\\r\\\
+-- apilib alias\\r\\\
+shell.setAlias(\\\"welcome\\\", \\\"/bin/welcome.sh\\\")\\r\\\
+-- apilib autocomplete\\r\\\
+completion = require \\\"cc.shell.completion\\\"\\r\\\
+completewelc = completion.build( { completion.file, many = true })\\r\\\
+shell.setCompletionFunction(\\\"bin/welcome.sh\\\", completewelc)\\r\\\
+-- end apilib file\",\
+    [ \"etc/apilib/cprint\" ] = \"-- Do auto update?\\\
+local auto = false\\\
+\\\
+--[[\\\
+    ###INFO###\\\
+    * Language\\\
+       Lua (ComputerCraft)\\\
+       \\\
+    * Version\\\
+       1.3\\\
+       \\\
+    * Status\\\
+       Working, not closed.\\\
+]]--\\\
+\\\
+--[[\\\
+    cPrint API by Jesusthekiller\\\
+    This work is licensed under the Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License.\\\
+	More info: http://creativecommons.org/licenses/by-nc-sa/3.0/deed.en_US\\\
+]]--\\\
+\\\
+--[[\\\
+	Big thanks to theorginalbit for help with cCode and toCode!\\\
+]]--\\\
+\\\
+--[[\\\
+    Version log:\\\
+    1.0:\\\
+     * Initial release\\\
+    \\\
+    1.1:\\\
+     * Added cwrite\\\
+     * Added update\\\
+     * cprint now adds \\\"\\\\n\\\" to the end of the line\\\
+     * Improved cCode\\\
+     * Improved toCode\\\
+     * Auto updater\\\
+	 \\\
+    1.2:\\\
+     * Added non-advanced computer support\\\
+     * Bugfixes\\\
+\\\
+    1.3:\\\
+     * Even better non-advanced computer support\\\
+]]--\\\
+\\\
+local DO_NOT_TOUCH = 5\\\
+\\\
+-- Updater func:\\\
+\\\
+function update()\\\
+	if not http then\\\
+		error(\\\"HTTP API required!\\\")\\\
+	end\\\
+	\\\
+	cprint(\\\"&5Checking for &4cprint &5update...\\\")\\\
+	\\\
+	local v = http.get(\\\"http://mindblow.no-ip.org/code/cprint/ver\\\")\\\
+	\\\
+	if v == nil then\\\
+		error(\\\"nil response from update server! Check your internet connection!\\\")\\\
+	end\\\
+	\\\
+	if tonumber(v.readLine()) <= DO_NOT_TOUCH then\\\
+		cprint(\\\"&5No new updates!\\\")\\\
+		return false\\\
+	end\\\
+	\\\
+	-- Install cPrint\\\
+	\\\
+	cprint(\\\"&5Downloading &4cPrint&5...\\\")\\\
+	\\\
+	local f = http.get(v.readLine())\\\
+	\\\
+	cprint(\\\"&5Installing &4cPrint&5 as &4cprint &5in main directory...\\\")\\\
+	\\\
+	local e = fs.open(\\\"cprint\\\", \\\"w\\\") -- API Folder\\\
+	\\\
+	e.write(f.readAll())\\\
+	\\\
+	e.close()\\\
+	f.close()\\\
+	\\\
+	-- Install palette\\\
+	\\\
+	cprint(\\\"&5Downloading &4Palette&5...\\\")\\\
+	\\\
+	local f = http.get(v.readLine())\\\
+	\\\
+	v.close()\\\
+	\\\
+	cprint(\\\"&5Installing &4Palette&5 as &4palette &5in main directory...\\\")\\\
+	\\\
+	local e = fs.open(\\\"palette\\\", \\\"w\\\") -- API Folder\\\
+	\\\
+	e.write(f.readAll())\\\
+	\\\
+	e.close()\\\
+	f.close()\\\
+	\\\
+	v.close()\\\
+	print(\\\"Done!\\\")\\\
+	return true\\\
+end\\\
+\\\
+function sc(x, y)\\\
+    term.setCursorPos(x, y)\\\
+end\\\
+\\\
+function clear(move)\\\
+    sb(colors.black)\\\
+    term.clear()\\\
+    if move ~= false then sc(1,1) end\\\
+end\\\
+\\\
+function sb(color)\\\
+    term.setBackgroundColor(color) \\\
+end\\\
+\\\
+function st(color)\\\
+    term.setTextColor(color)\\\
+end\\\
+\\\
+function cCode(h)\\\
+	if term.isColor() and term.isColor then\\\
+		return 2 ^ (tonumber(h, 16) or 0)\\\
+	else\\\
+		if h == \\\"f\\\" then\\\
+			return colors.black\\\
+		else\\\
+			return colors.white\\\
+		end\\\
+	end\\\
+end\\\
+\\\
+function toCode(n)\\\
+	return string.format('%x', n)\\\
+end\\\
+\\\
+function cwrite(text)\\\
+	text = tostring(text)\\\
+	\\\
+	local i = 0\\\
+    while true  do\\\
+		i = i + 1\\\
+		if i > #text then break end\\\
+		\\\
+        local c = text:sub(i, i)\\\
+\\\
+		if c == \\\"\\\\\\\\\\\" then\\\
+            if text:sub(i+1, i+1) == \\\"&\\\" then\\\
+                write(\\\"&\\\")\\\
+                i = i + 1\\\
+            elseif text:sub(i+1, i+1) == \\\"$\\\" then\\\
+                write(\\\"$\\\")\\\
+                i = i + 1\\\
+			else\\\
+				write(c)\\\
+            end\\\
+        elseif c == \\\"&\\\" then\\\
+            st(cCode(text:sub(i+1, i+1)))\\\
+            i = i + 1\\\
+        elseif c == \\\"$\\\" then\\\
+            sb(cCode(text:sub(i+1, i+1)))\\\
+            i = i + 1\\\
+        else\\\
+            write(c)\\\
+        end\\\
+    end\\\
+	\\\
+	return\\\
+end\\\
+\\\
+function cprint(text)\\\
+	return cwrite(tostring(text)..\\\"\\\\n\\\")\\\
+end\\\
+\\\
+if auto then update() end\\\
+\",\
+    [ \"etc/apilib/surface.sys\" ] = \"local surface = { } do\\r\\\
+--[[\\r\\\
+Surface 2\\r\\\
+\\r\\\
+The MIT License (MIT)\\r\\\
+Copyright (c) 2017 CrazedProgrammer\\r\\\
+\\r\\\
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and\\r\\\
+associated documentation files (the \\\"Software\\\"), to deal in the Software without restriction,\\r\\\
+including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense,\\r\\\
+and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do\\r\\\
+so, subject to the following conditions:\\r\\\
+\\r\\\
+The above copyright notice and this permission notice shall be included in all copies or\\r\\\
+substantial portions of the Software.\\r\\\
+\\r\\\
+THE SOFTWARE IS PROVIDED \\\"AS IS\\\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,\\r\\\
+INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A\\r\\\
+PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR\\r\\\
+COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN\\r\\\
+AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION\\r\\\
+WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.\\r\\\
+]]\\r\\\
+\\r\\\
+local surf = { }\\r\\\
+surface.surf = surf\\r\\\
+\\r\\\
+local table_concat, math_floor, math_atan2 = table.concat, math.floor, math.atan2\\r\\\
+\\r\\\
+local _cc_color_to_hex, _cc_hex_to_color = { }, { }\\r\\\
+for i = 0, 15 do\\r\\\
+	_cc_color_to_hex[2 ^ i] = string.format(\\\"%01x\\\", i)\\r\\\
+	_cc_hex_to_color[string.format(\\\"%01x\\\", i)] = 2 ^ i\\r\\\
+end\\r\\\
+\\r\\\
+local _chars = { }\\r\\\
+for i = 0, 255 do\\r\\\
+	_chars[i] = string.char(i)\\r\\\
+end\\r\\\
+local _numstr = { }\\r\\\
+for i = 0, 1023 do\\r\\\
+	_numstr[i] = tostring(i)\\r\\\
+end\\r\\\
+\\r\\\
+local _eprc, _esin, _ecos = 20, { }, { }\\r\\\
+for i = 0, _eprc - 1 do\\r\\\
+	_esin[i + 1] = (1 - math.sin(i / _eprc * math.pi * 2)) / 2\\r\\\
+	_ecos[i + 1] = (1 + math.cos(i / _eprc * math.pi * 2)) / 2\\r\\\
+end\\r\\\
+\\r\\\
+local _steps, _palette, _rgbpal, _palr, _palg, _palb = 16\\r\\\
+\\r\\\
+local function calcStack(stack, width, height)\\r\\\
+	local ox, oy, cx, cy, cwidth, cheight = 0, 0, 0, 0, width, height\\r\\\
+	for i = 1, #stack do\\r\\\
+		ox = ox + stack[i].ox\\r\\\
+		oy = oy + stack[i].oy\\r\\\
+		cx = cx + stack[i].x\\r\\\
+		cy = cy + stack[i].y\\r\\\
+		cwidth = stack[i].width\\r\\\
+		cheight = stack[i].height\\r\\\
+	end\\r\\\
+	return ox, oy, cx, cy, cwidth, cheight\\r\\\
+end\\r\\\
+\\r\\\
+local function clipRect(x, y, width, height, cx, cy, cwidth, cheight)\\r\\\
+	if x < cx then\\r\\\
+		width = width + x - cx\\r\\\
+		x = cx\\r\\\
+	end\\r\\\
+	if y < cy then\\r\\\
+		height = height + y - cy\\r\\\
+		y = cy\\r\\\
+	end\\r\\\
+	if x + width > cx + cwidth then\\r\\\
+		width = cwidth + cx - x\\r\\\
+	end\\r\\\
+	if y + height > cy + cheight then\\r\\\
+		height = cheight + cy - y\\r\\\
+	end\\r\\\
+	return x, y, width, height\\r\\\
+end\\r\\\
+\\r\\\
+\\r\\\
+\\r\\\
+function surface.create(width, height, b, t, c)\\r\\\
+	local surface = setmetatable({ }, {__index = surface.surf})\\r\\\
+	surface.width = width\\r\\\
+	surface.height = height\\r\\\
+	surface.buffer = { }\\r\\\
+	surface.overwrite = false\\r\\\
+	surface.stack = { }\\r\\\
+	surface.ox, surface.oy, surface.cx, surface.cy, surface.cwidth, surface.cheight = calcStack(surface.stack, width, height)\\r\\\
+	-- force array indeces instead of hashed indices\\r\\\
+\\r\\\
+	local buffer = surface.buffer\\r\\\
+	for i = 1, width * height * 3, 3 do\\r\\\
+		buffer[i] = b or false\\r\\\
+		buffer[i + 1] = t or false\\r\\\
+		buffer[i + 2] = c or false\\r\\\
+	end\\r\\\
+	buffer[width * height * 3 + 1] = false\\r\\\
+	if not b then\\r\\\
+		for i = 1, width * height * 3, 3 do\\r\\\
+			buffer[i] = b\\r\\\
+		end\\r\\\
+	end\\r\\\
+	if not t then\\r\\\
+		for i = 2, width * height * 3, 3 do\\r\\\
+			buffer[i] = t\\r\\\
+		end\\r\\\
+	end\\r\\\
+	if not c then\\r\\\
+		for i = 3, width * height * 3, 3 do\\r\\\
+			buffer[i] = c\\r\\\
+		end\\r\\\
+	end\\r\\\
+\\r\\\
+	return surface\\r\\\
+end\\r\\\
+\\r\\\
+function surface.getPlatformOutput(output)\\r\\\
+	output = output or (term or gpu or (love and love.graphics) or io)\\r\\\
+\\r\\\
+	if output.blit and output.setCursorPos then\\r\\\
+		return \\\"cc\\\", output, output.getSize()\\r\\\
+	elseif output.write and output.setCursorPos and output.setTextColor and output.setBackgroundColor then\\r\\\
+		return \\\"cc-old\\\", output, output.getSize()\\r\\\
+	elseif output.blitPixels then\\r\\\
+		return \\\"riko-4\\\", output, 320, 200\\r\\\
+	elseif output.points and output.setColor then\\r\\\
+		return \\\"love2d\\\", output, output.getWidth(), output.getHeight()\\r\\\
+	elseif output.drawPixel then\\r\\\
+		return \\\"redirection\\\", output, 64, 64\\r\\\
+	elseif output.setForeground and output.setBackground and output.set then\\r\\\
+		return \\\"oc\\\", output, output.getResolution()\\r\\\
+	elseif output.write then\\r\\\
+		return \\\"ansi\\\", output, (os.getenv and (os.getenv(\\\"COLUMNS\\\"))) or 80, (os.getenv and (os.getenv(\\\"LINES\\\"))) or 43\\r\\\
+	else\\r\\\
+		error(\\\"unsupported platform/output object\\\")\\r\\\
+	end\\r\\\
+end\\r\\\
+\\r\\\
+function surf:output(output, x, y, sx, sy, swidth, sheight)\\r\\\
+	local platform, output, owidth, oheight = surface.getPlatformOutput(output)\\r\\\
+\\r\\\
+	x = x or 0\\r\\\
+	y = y or 0\\r\\\
+	sx = sx or 0\\r\\\
+	sy = sy or 0\\r\\\
+	swidth = swidth or self.width\\r\\\
+	sheight = sheight or self.height\\r\\\
+	sx, sy, swidth, sheight = clipRect(sx, sy, swidth, sheight, 0, 0, self.width, self.height)\\r\\\
+\\r\\\
+	local buffer = self.buffer\\r\\\
+	local bwidth = self.width\\r\\\
+	local xoffset, yoffset, idx\\r\\\
+\\r\\\
+	if platform == \\\"cc\\\" then\\r\\\
+		-- CC\\r\\\
+		local str, text, back = { }, { }, { }\\r\\\
+		for j = 0, sheight - 1 do\\r\\\
+			yoffset = (j + sy) * bwidth + sx\\r\\\
+			for i = 0, swidth - 1 do\\r\\\
+				xoffset = (yoffset + i) * 3\\r\\\
+				idx = i + 1\\r\\\
+				str[idx] = buffer[xoffset + 3] or \\\" \\\"\\r\\\
+				text[idx] = _cc_color_to_hex[buffer[xoffset + 2] or 1]\\r\\\
+				back[idx] = _cc_color_to_hex[buffer[xoffset + 1] or 32768]\\r\\\
+			end\\r\\\
+			output.setCursorPos(x + 1, y + j + 1)\\r\\\
+			output.blit(table_concat(str), table_concat(text), table_concat(back))\\r\\\
+		end\\r\\\
+\\r\\\
+	elseif platform == \\\"cc-old\\\" then\\r\\\
+		-- CC pre-1.76\\r\\\
+		local str, b, t, pb, pt = { }\\r\\\
+		for j = 0, sheight - 1 do\\r\\\
+			output.setCursorPos(x + 1, y + j + 1)\\r\\\
+			yoffset = (j + sy) * bwidth + sx\\r\\\
+			for i = 0, swidth - 1 do\\r\\\
+				xoffset = (yoffset + i) * 3\\r\\\
+				pb = buffer[xoffset + 1] or 32768\\r\\\
+				pt = buffer[xoffset + 2] or 1\\r\\\
+				if pb ~= b then\\r\\\
+					if #str ~= 0 then\\r\\\
+						output.write(table_concat(str))\\r\\\
+						str = { }\\r\\\
+					end\\r\\\
+					b = pb\\r\\\
+					output.setBackgroundColor(b)\\r\\\
+				end\\r\\\
+				if pt ~= t then\\r\\\
+					if #str ~= 0 then\\r\\\
+						output.write(table_concat(str))\\r\\\
+						str = { }\\r\\\
+					end\\r\\\
+					t = pt\\r\\\
+					output.setTextColor(t)\\r\\\
+				end\\r\\\
+				str[#str + 1] = buffer[xoffset + 3] or \\\" \\\"\\r\\\
+			end\\r\\\
+			output.write(table_concat(str))\\r\\\
+			str = { }\\r\\\
+		end\\r\\\
+\\r\\\
+	elseif platform == \\\"riko-4\\\" then\\r\\\
+		-- Riko 4\\r\\\
+		local pixels = { }\\r\\\
+		for j = 0, sheight - 1 do\\r\\\
+			yoffset = (j + sy) * bwidth + sx\\r\\\
+			for i = 0, swidth - 1 do\\r\\\
+				pixels[j * swidth + i + 1] = buffer[(yoffset + i) * 3 + 1] or 0\\r\\\
+			end\\r\\\
+		end\\r\\\
+		output.blitPixels(x, y, swidth, sheight, pixels)\\r\\\
+\\r\\\
+	elseif platform == \\\"love2d\\\" then\\r\\\
+		-- Love2D\\r\\\
+		local pos, r, g, b, pr, pg, pb = { }\\r\\\
+		for j = 0, sheight - 1 do\\r\\\
+			yoffset = (j + sy) * bwidth + sx\\r\\\
+			for i = 0, swidth - 1 do\\r\\\
+				xoffset = (yoffset + i) * 3\\r\\\
+				pr = buffer[xoffset + 1]\\r\\\
+				pg = buffer[xoffset + 2]\\r\\\
+				pb = buffer[xoffset + 3]\\r\\\
+				if pr ~= r or pg ~= g or pb ~= b then\\r\\\
+					if #pos ~= 0 then\\r\\\
+						output.setColor((r or 0) * 255, (g or 0) * 255, (b or 0) * 255, (r or g or b) and 255 or 0)\\r\\\
+						output.points(pos)\\r\\\
+					end\\r\\\
+					r, g, b = pr, pg, pb\\r\\\
+					pos = { }\\r\\\
+				end\\r\\\
+				pos[#pos + 1] = i + x + 1\\r\\\
+				pos[#pos + 1] = j + y + 1\\r\\\
+			end\\r\\\
+		end\\r\\\
+		output.setColor((r or 0) * 255, (g or 0) * 255, (b or 0) * 255, (r or g or b) and 255 or 0)\\r\\\
+		output.points(pos)\\r\\\
+\\r\\\
+	elseif platform == \\\"redirection\\\" then\\r\\\
+		-- Redirection arcade (gpu)\\r\\\
+		-- todo: add image:write support for extra performance\\r\\\
+		local px = output.drawPixel\\r\\\
+		for j = 0, sheight - 1 do\\r\\\
+			for i = 0, swidth - 1 do\\r\\\
+				px(x + i, y + j, buffer[((j + sy) * bwidth + (i + sx)) * 3 + 1] or 0)\\r\\\
+			end\\r\\\
+		end\\r\\\
+\\r\\\
+	elseif platform == \\\"oc\\\" then\\r\\\
+		-- OpenComputers\\r\\\
+		local str, lx, b, t, pb, pt = { }\\r\\\
+		for j = 0, sheight - 1 do\\r\\\
+			lx = x\\r\\\
+			yoffset = (j + sy) * bwidth + sx\\r\\\
+			for i = 0, swidth - 1 do\\r\\\
+				xoffset = (yoffset + i) * 3\\r\\\
+				pb = buffer[xoffset + 1] or 0x000000\\r\\\
+				pt = buffer[xoffset + 2] or 0xFFFFFF\\r\\\
+				if pb ~= b then\\r\\\
+					if #str ~= 0 then\\r\\\
+						output.set(lx + 1, j + y + 1, table_concat(str))\\r\\\
+						lx = i + x\\r\\\
+						str = { }\\r\\\
+					end\\r\\\
+					b = pb\\r\\\
+					output.setBackground(b)\\r\\\
+				end\\r\\\
+				if pt ~= t then\\r\\\
+					if #str ~= 0 then\\r\\\
+						output.set(lx + 1, j + y + 1, table_concat(str))\\r\\\
+						lx = i + x\\r\\\
+						str = { }\\r\\\
+					end\\r\\\
+					t = pt\\r\\\
+					output.setForeground(t)\\r\\\
+				end\\r\\\
+				str[#str + 1] = buffer[xoffset + 3] or \\\" \\\"\\r\\\
+			end\\r\\\
+			output.set(lx + 1, j + y + 1, table_concat(str))\\r\\\
+			str = { }\\r\\\
+		end\\r\\\
+\\r\\\
+	elseif platform == \\\"ansi\\\" then\\r\\\
+		-- ANSI terminal\\r\\\
+		local str, b, t, pb, pt = { }\\r\\\
+		for j = 0, sheight - 1 do\\r\\\
+			str[#str + 1] = \\\"\\\\x1b[\\\".._numstr[y + j + 1]..\\\";\\\".._numstr[x + 1]..\\\"H\\\"\\r\\\
+			yoffset = (j + sy) * bwidth + sx\\r\\\
+			for i = 0, swidth - 1 do\\r\\\
+				xoffset = (yoffset + i) * 3\\r\\\
+				pb = buffer[xoffset + 1] or 0\\r\\\
+				pt = buffer[xoffset + 2] or 7\\r\\\
+				if pb ~= b then\\r\\\
+					b = pb\\r\\\
+					if b < 8 then\\r\\\
+						str[#str + 1] = \\\"\\\\x1b[\\\".._numstr[40 + b]..\\\"m\\\"\\r\\\
+					elseif b < 16 then\\r\\\
+						str[#str + 1] = \\\"\\\\x1b[\\\".._numstr[92 + b]..\\\"m\\\"\\r\\\
+					elseif b < 232 then\\r\\\
+						str[#str + 1] = \\\"\\\\x1b[48;2;\\\".._numstr[math_floor((b - 16) / 36 * 85 / 2)]..\\\";\\\".._numstr[math_floor((b - 16) / 6 % 6 * 85 / 2)]..\\\";\\\".._numstr[math_floor((b - 16) % 6 * 85 / 2)]..\\\"m\\\"\\r\\\
+					else\\r\\\
+						local gr = _numstr[b * 10 - 2312]\\r\\\
+						str[#str + 1] = \\\"\\\\x1b[48;2;\\\"..gr..\\\";\\\"..gr..\\\";\\\"..gr..\\\"m\\\"\\r\\\
+					end\\r\\\
+				end\\r\\\
+				if pt ~= t then\\r\\\
+					t = pt\\r\\\
+					if t < 8 then\\r\\\
+						str[#str + 1] = \\\"\\\\x1b[\\\".._numstr[30 + t]..\\\"m\\\"\\r\\\
+					elseif t < 16 then\\r\\\
+						str[#str + 1] = \\\"\\\\x1b[\\\".._numstr[82 + t]..\\\"m\\\"\\r\\\
+					elseif t < 232 then\\r\\\
+						str[#str + 1] = \\\"\\\\x1b[38;2;\\\".._numstr[math_floor((t - 16) / 36 * 85 / 2)]..\\\";\\\".._numstr[math_floor((t - 16) / 6 % 6 * 85 / 2)]..\\\";\\\".._numstr[math_floor((t - 16) % 6 * 85 / 2)]..\\\"m\\\"\\r\\\
+					else\\r\\\
+						local gr = _numstr[t * 10 - 2312]\\r\\\
+						str[#str + 1] = \\\"\\\\x1b[38;2;\\\"..gr..\\\";\\\"..gr..\\\";\\\"..gr..\\\"m\\\"\\r\\\
+					end\\r\\\
+				end\\r\\\
+				str[#str + 1] = buffer[xoffset + 3] or \\\" \\\"\\r\\\
+			end\\r\\\
+		end\\r\\\
+		output.write(table_concat(str))\\r\\\
+	end\\r\\\
+end\\r\\\
+\\r\\\
+function surf:push(x, y, width, height, nooffset)\\r\\\
+	x, y = x + self.ox, y + self.oy\\r\\\
+\\r\\\
+	local ox, oy = nooffset and self.ox or x, nooffset and self.oy or y\\r\\\
+	x, y, width, height = clipRect(x, y, width, height, self.cx, self.cy, self.cwidth, self.cheight)\\r\\\
+	self.stack[#self.stack + 1] = {ox = ox - self.ox, oy = oy - self.oy, x = x - self.cx, y = y - self.cy, width = width, height = height}\\r\\\
+\\r\\\
+	self.ox, self.oy, self.cx, self.cy, self.cwidth, self.cheight = calcStack(self.stack, self.width, self.height)\\r\\\
+end\\r\\\
+\\r\\\
+function surf:pop()\\r\\\
+	if #self.stack == 0 then\\r\\\
+		error(\\\"no stencil to pop\\\")\\r\\\
+	end\\r\\\
+	self.stack[#self.stack] = nil\\r\\\
+	self.ox, self.oy, self.cx, self.cy, self.cwidth, self.cheight = calcStack(self.stack, self.width, self.height)\\r\\\
+end\\r\\\
+\\r\\\
+function surf:copy()\\r\\\
+	local surface = setmetatable({ }, {__index = surface.surf})\\r\\\
+\\r\\\
+	for k, v in pairs(self) do\\r\\\
+		surface[k] = v\\r\\\
+	end\\r\\\
+\\r\\\
+	surface.buffer = { }\\r\\\
+	for i = 1, self.width * self.height * 3 + 1 do\\r\\\
+		surface.buffer[i] = false\\r\\\
+	end\\r\\\
+	for i = 1, self.width * self.height * 3 do\\r\\\
+		surface.buffer[i] = self.buffer[i]\\r\\\
+	end\\r\\\
+\\r\\\
+	surface.stack = { }\\r\\\
+	for i = 1, #self.stack do\\r\\\
+		surface.stack[i] = self.stack[i]\\r\\\
+	end\\r\\\
+\\r\\\
+	return surface\\r\\\
+end\\r\\\
+\\r\\\
+function surf:clear(b, t, c)\\r\\\
+	local xoffset, yoffset\\r\\\
+\\r\\\
+	for j = 0, self.cheight - 1 do\\r\\\
+		yoffset = (j + self.cy) * self.width + self.cx\\r\\\
+		for i = 0, self.cwidth - 1 do\\r\\\
+			xoffset = (yoffset + i) * 3\\r\\\
+			self.buffer[xoffset + 1] = b\\r\\\
+			self.buffer[xoffset + 2] = t\\r\\\
+			self.buffer[xoffset + 3] = c\\r\\\
+		end\\r\\\
+	end\\r\\\
+end\\r\\\
+\\r\\\
+function surf:drawPixel(x, y, b, t, c)\\r\\\
+	x, y = x + self.ox, y + self.oy\\r\\\
+\\r\\\
+	local idx\\r\\\
+	if x >= self.cx and x < self.cx + self.cwidth and y >= self.cy and y < self.cy + self.cheight then\\r\\\
+		idx = (y * self.width + x) * 3\\r\\\
+		if b or self.overwrite then\\r\\\
+			self.buffer[idx + 1] = b\\r\\\
+		end\\r\\\
+		if t or self.overwrite then\\r\\\
+			self.buffer[idx + 2] = t\\r\\\
+		end\\r\\\
+		if c or self.overwrite then\\r\\\
+			self.buffer[idx + 3] = c\\r\\\
+		end\\r\\\
+	end\\r\\\
+end\\r\\\
+\\r\\\
+function surf:drawString(str, x, y, b, t)\\r\\\
+	x, y = x + self.ox, y + self.oy\\r\\\
+\\r\\\
+	local sx = x\\r\\\
+	local insidey = y >= self.cy and y < self.cy + self.cheight\\r\\\
+	local idx\\r\\\
+	local lowerxlim = self.cx\\r\\\
+	local upperxlim = self.cx + self.cwidth\\r\\\
+	local writeb = b or self.overwrite\\r\\\
+	local writet = t or self.overwrite\\r\\\
+\\r\\\
+	for i = 1, #str do\\r\\\
+		local c = str:sub(i, i)\\r\\\
+		if c == \\\"\\\\n\\\" then\\r\\\
+			x = sx\\r\\\
+			y = y + 1\\r\\\
+			if insidey then\\r\\\
+				if y >= self.cy + self.cheight then\\r\\\
+					return\\r\\\
+				end\\r\\\
+			else\\r\\\
+				insidey = y >= self.cy\\r\\\
+			end\\r\\\
+		else\\r\\\
+			idx = (y * self.width + x) * 3\\r\\\
+			if x >= lowerxlim and x < upperxlim and insidey then\\r\\\
+				if writeb then\\r\\\
+					self.buffer[idx + 1] = b\\r\\\
+				end\\r\\\
+				if writet then\\r\\\
+					self.buffer[idx + 2] = t\\r\\\
+				end\\r\\\
+				self.buffer[idx + 3] = c\\r\\\
+			end\\r\\\
+			x = x + 1\\r\\\
+		end\\r\\\
+	end\\r\\\
+end\\r\\\
+\\r\\\
+-- You can remove any of these components\\r\\\
+function surface.load(strpath, isstr)\\r\\\
+	local data = strpath\\r\\\
+	if not isstr then\\r\\\
+		local handle = io.open(strpath, \\\"rb\\\")\\r\\\
+		if not handle then return end\\r\\\
+		local chars = { }\\r\\\
+		local byte = handle:read(1)\\r\\\
+		if type(byte) == \\\"number\\\" then -- cc doesn't conform to standards\\r\\\
+			while byte do\\r\\\
+				chars[#chars + 1] = _chars[byte]\\r\\\
+				byte = handle:read(1)\\r\\\
+			end\\r\\\
+		else\\r\\\
+			while byte do\\r\\\
+				chars[#chars + 1] = byte\\r\\\
+				byte = handle:read(1)\\r\\\
+			end\\r\\\
+		end\\r\\\
+		handle:close()\\r\\\
+		data = table_concat(chars)\\r\\\
+	end\\r\\\
+	\\r\\\
+	if data:sub(1, 3) == \\\"RIF\\\" then\\r\\\
+		-- Riko 4 image format\\r\\\
+		local width, height = data:byte(4) * 256 + data:byte(5), data:byte(6) * 256 + data:byte(7)\\r\\\
+		local surf = surface.create(width, height)\\r\\\
+		local buffer = surf.buffer\\r\\\
+		local upper, byte = 8, false\\r\\\
+		local byte = data:byte(index)\\r\\\
+\\r\\\
+		for j = 0, height - 1 do\\r\\\
+			for i = 0, height - 1 do\\r\\\
+				if not upper then\\r\\\
+					buffer[(j * width + i) * 3 + 1] = math_floor(byte / 16)\\r\\\
+				else\\r\\\
+					buffer[(j * width + i) * 3 + 1] = byte % 16\\r\\\
+					index = index + 1\\r\\\
+					data = data:byte(index)\\r\\\
+				end\\r\\\
+				upper = not upper\\r\\\
+			end\\r\\\
+		end\\r\\\
+		return surf\\r\\\
+\\r\\\
+	elseif data:sub(1, 2) == \\\"BM\\\" then\\r\\\
+		-- BMP format\\r\\\
+		local width = data:byte(0x13) + data:byte(0x14) * 256\\r\\\
+		local height = data:byte(0x17) + data:byte(0x18) * 256\\r\\\
+		if data:byte(0xF) ~= 0x28 or data:byte(0x1B) ~= 1 or data:byte(0x1D) ~= 0x18 then\\r\\\
+			error(\\\"unsupported bmp format, only uncompressed 24-bit rgb is supported.\\\")\\r\\\
+		end\\r\\\
+		local offset, linesize = 0x36, math.ceil((width * 3) / 4) * 4\\r\\\
+		\\r\\\
+		local surf = surface.create(width, height)\\r\\\
+		local buffer = surf.buffer\\r\\\
+		for j = 0, height - 1 do\\r\\\
+			for i = 0, width - 1 do\\r\\\
+				buffer[(j * width + i) * 3 + 1] = data:byte((height - j - 1) * linesize + i * 3 + offset + 3) / 255\\r\\\
+				buffer[(j * width + i) * 3 + 2] = data:byte((height - j - 1) * linesize + i * 3 + offset + 2) / 255\\r\\\
+				buffer[(j * width + i) * 3 + 3] = data:byte((height - j - 1) * linesize + i * 3 + offset + 1) / 255\\r\\\
+			end\\r\\\
+		end\\r\\\
+		return surf\\r\\\
+\\r\\\
+	elseif data:find(\\\"\\\\30\\\") then\\r\\\
+		-- NFT format\\r\\\
+		local width, height, lwidth = 0, 1, 0\\r\\\
+		for i = 1, #data do\\r\\\
+			if data:byte(i) == 10 then -- newline\\r\\\
+				height = height + 1\\r\\\
+				if lwidth > width then\\r\\\
+					width = lwidth\\r\\\
+				end\\r\\\
+				lwidth = 0\\r\\\
+			elseif data:byte(i) == 30 or data:byte(i) == 31 then -- color control\\r\\\
+				lwidth = lwidth - 1\\r\\\
+			elseif data:byte(i) ~= 13 then -- not carriage return\\r\\\
+				lwidth = lwidth + 1\\r\\\
+			end\\r\\\
+		end\\r\\\
+		if data:byte(#data) == 10 then\\r\\\
+			height = height - 1\\r\\\
+		end\\r\\\
+\\r\\\
+		local surf = surface.create(width, height)\\r\\\
+		local buffer = surf.buffer\\r\\\
+		local index, x, y, b, t = 1, 0, 0\\r\\\
+\\r\\\
+		while index <= #data do\\r\\\
+			if data:byte(index) == 10 then\\r\\\
+				x, y = 0, y + 1\\r\\\
+			elseif data:byte(index) == 30 then\\r\\\
+				index = index + 1\\r\\\
+				b = _cc_hex_to_color[data:sub(index, index)]\\r\\\
+			elseif data:byte(index) == 31 then\\r\\\
+				index = index + 1\\r\\\
+				t = _cc_hex_to_color[data:sub(index, index)]\\r\\\
+			elseif data:byte(index) ~= 13 then\\r\\\
+				buffer[(y * width + x) * 3 + 1] = b\\r\\\
+				buffer[(y * width + x) * 3 + 2] = t\\r\\\
+				if b or t then\\r\\\
+					buffer[(y * width + x) * 3 + 3] = data:sub(index, index)\\r\\\
+				elseif data:sub(index, index) ~= \\\" \\\" then\\r\\\
+					buffer[(y * width + x) * 3 + 3] = data:sub(index, index)\\r\\\
+				end\\r\\\
+				x = x + 1\\r\\\
+			end\\r\\\
+			index = index + 1\\r\\\
+		end\\r\\\
+\\r\\\
+		return surf\\r\\\
+	else\\r\\\
+		-- NFP format\\r\\\
+		local width, height, lwidth = 0, 1, 0\\r\\\
+		for i = 1, #data do\\r\\\
+			if data:byte(i) == 10 then -- newline\\r\\\
+				height = height + 1\\r\\\
+				if lwidth > width then\\r\\\
+					width = lwidth\\r\\\
+				end\\r\\\
+				lwidth = 0\\r\\\
+			elseif data:byte(i) ~= 13 then -- not carriage return\\r\\\
+				lwidth = lwidth + 1\\r\\\
+			end\\r\\\
+		end\\r\\\
+		if data:byte(#data) == 10 then\\r\\\
+			height = height - 1\\r\\\
+		end\\r\\\
+\\r\\\
+		local surf = surface.create(width, height)\\r\\\
+		local buffer = surf.buffer\\r\\\
+		local x, y = 0, 0\\r\\\
+		for i = 1, #data do\\r\\\
+			if data:byte(i) == 10 then\\r\\\
+				x, y = 0, y + 1\\r\\\
+			elseif data:byte(i) ~= 13 then\\r\\\
+				buffer[(y * width + x) * 3 + 1] = _cc_hex_to_color[data:sub(i, i)]\\r\\\
+				x = x + 1\\r\\\
+			end\\r\\\
+		end\\r\\\
+\\r\\\
+		return surf\\r\\\
+	end\\r\\\
+end\\r\\\
+\\r\\\
+function surf:save(file, format)\\r\\\
+	format = format or \\\"nfp\\\"\\r\\\
+	local data = { }\\r\\\
+	if format == \\\"nfp\\\" then\\r\\\
+		for j = 0, self.height - 1 do\\r\\\
+			for i = 0, self.width - 1 do\\r\\\
+				data[#data + 1] = _cc_color_to_hex[self.buffer[(j * self.width + i) * 3 + 1]] or \\\" \\\"\\r\\\
+			end\\r\\\
+			data[#data + 1] = \\\"\\\\n\\\"\\r\\\
+		end\\r\\\
+\\r\\\
+	elseif format == \\\"nft\\\" then\\r\\\
+		for j = 0, self.height - 1 do\\r\\\
+			local b, t, pb, pt\\r\\\
+			for i = 0, self.width - 1 do\\r\\\
+				pb = self.buffer[(j * self.width + i) * 3 + 1]\\r\\\
+				pt = self.buffer[(j * self.width + i) * 3 + 2]\\r\\\
+				if pb ~= b then\\r\\\
+					data[#data + 1] = \\\"\\\\30\\\"..(_cc_color_to_hex[pb] or \\\" \\\")\\r\\\
+					b = pb\\r\\\
+				end\\r\\\
+				if pt ~= t then\\r\\\
+					data[#data + 1] = \\\"\\\\31\\\"..(_cc_color_to_hex[pt] or \\\" \\\")\\r\\\
+					t = pt\\r\\\
+				end\\r\\\
+				data[#data + 1] = self.buffer[(j * self.width + i) * 3 + 3] or \\\" \\\"\\r\\\
+			end\\r\\\
+			data[#data + 1] = \\\"\\\\n\\\"\\r\\\
+		end\\r\\\
+\\r\\\
+	elseif format == \\\"rif\\\" then\\r\\\
+		data[1] = \\\"RIF\\\"\\r\\\
+		data[2] = string.char(math_floor(self.width / 256), self.width % 256)\\r\\\
+		data[3] = string.char(math_floor(self.height / 256), self.height % 256)\\r\\\
+		local byte, upper, c = 0, false\\r\\\
+		for j = 0, self.width - 1 do\\r\\\
+			for i = 0, self.height - 1 do\\r\\\
+				c = self.buffer[(j * self.width + i) * 3 + 1] or 0\\r\\\
+				if not upper then\\r\\\
+					byte = c * 16\\r\\\
+				else\\r\\\
+					byte = byte + c\\r\\\
+					data[#data + 1] = string.char(byte)\\r\\\
+				end\\r\\\
+				upper = not upper\\r\\\
+			end\\r\\\
+		end\\r\\\
+		if upper then\\r\\\
+			data[#data + 1] = string.char(byte)\\r\\\
+		end\\r\\\
+\\r\\\
+	elseif format == \\\"bmp\\\" then\\r\\\
+		data[1] = \\\"BM\\\"\\r\\\
+		data[2] = string.char(0, 0, 0, 0) -- file size, change later\\r\\\
+		data[3] = string.char(0, 0, 0, 0, 0x36, 0, 0, 0, 0x28, 0, 0, 0) \\r\\\
+		data[4] = string.char(self.width % 256, math_floor(self.width / 256), 0, 0)\\r\\\
+		data[5] = string.char(self.height % 256, math_floor(self.height / 256), 0, 0)\\r\\\
+		data[6] = string.char(1, 0, 0x18, 0, 0, 0, 0, 0)\\r\\\
+		data[7] = string.char(0, 0, 0, 0) -- pixel data size, change later\\r\\\
+		data[8] = string.char(0x13, 0x0B, 0, 0, 0x13, 0x0B, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)\\r\\\
+\\r\\\
+		local padchars = math.ceil((self.width * 3) / 4) * 4 - self.width * 3\\r\\\
+		for j = self.height - 1, 0, -1 do\\r\\\
+			for i = 0, self.width - 1 do\\r\\\
+				data[#data + 1] = string.char((self.buffer[(j * self.width + i) * 3 + 1] or 0) * 255)\\r\\\
+				data[#data + 1] = string.char((self.buffer[(j * self.width + i) * 3 + 2] or 0) * 255)\\r\\\
+				data[#data + 1] = string.char((self.buffer[(j * self.width + i) * 3 + 3] or 0) * 255)\\r\\\
+			end\\r\\\
+			data[#data + 1] = (\\\"\\\\0\\\"):rep(padchars)\\r\\\
+		end\\r\\\
+		local size = #table_concat(data)\\r\\\
+		data[2] = string.char(size % 256, math_floor(size / 256) % 256, math_floor(size / 65536), 0)\\r\\\
+		size = size - 54\\r\\\
+		data[7] = string.char(size % 256, math_floor(size / 256) % 256, math_floor(size / 65536), 0)\\r\\\
+		 \\r\\\
+	else\\r\\\
+		error(\\\"format not supported\\\")\\r\\\
+	end\\r\\\
+\\r\\\
+	data = table_concat(data)\\r\\\
+	if file then\\r\\\
+		local handle = io.open(file, \\\"wb\\\")\\r\\\
+		for i = 1, #data do\\r\\\
+			handle:write(data:byte(i))\\r\\\
+		end\\r\\\
+		handle:close()\\r\\\
+	end\\r\\\
+	return data\\r\\\
+end\\r\\\
+function surf:drawLine(x1, y1, x2, y2, b, t, c)\\r\\\
+	if x1 == x2 then\\r\\\
+		x1, y1, x2, y2 = x1 + self.ox, y1 + self.oy, x2 + self.ox, y2 + self.oy\\r\\\
+		if x1 < self.cx or x1 >= self.cx + self.cwidth then return end\\r\\\
+		if y2 < y1 then\\r\\\
+			local temp = y1\\r\\\
+			y1 = y2\\r\\\
+			y2 = temp\\r\\\
+		end\\r\\\
+		if y1 < self.cy then y1 = self.cy end\\r\\\
+		if y2 >= self.cy + self.cheight then y2 = self.cy + self.cheight - 1 end\\r\\\
+		if b or self.overwrite then\\r\\\
+			for j = y1, y2 do\\r\\\
+				self.buffer[(j * self.width + x1) * 3 + 1] = b\\r\\\
+			end\\r\\\
+		end\\r\\\
+		if t or self.overwrite then\\r\\\
+			for j = y1, y2 do\\r\\\
+				self.buffer[(j * self.width + x1) * 3 + 2] = t\\r\\\
+			end\\r\\\
+		end\\r\\\
+		if c or self.overwrite then\\r\\\
+			for j = y1, y2 do\\r\\\
+				self.buffer[(j * self.width + x1) * 3 + 3] = c\\r\\\
+			end\\r\\\
+		end\\r\\\
+	elseif y1 == y2 then\\r\\\
+		x1, y1, x2, y2 = x1 + self.ox, y1 + self.oy, x2 + self.ox, y2 + self.oy\\r\\\
+		if y1 < self.cy or y1 >= self.cy + self.cheight then return end\\r\\\
+		if x2 < x1 then\\r\\\
+			local temp = x1\\r\\\
+			x1 = x2\\r\\\
+			x2 = temp\\r\\\
+		end\\r\\\
+		if x1 < self.cx then x1 = self.cx end\\r\\\
+		if x2 >= self.cx + self.cwidth then x2 = self.cx + self.cwidth - 1 end\\r\\\
+		if b or self.overwrite then\\r\\\
+			for i = x1, x2 do\\r\\\
+				self.buffer[(y1 * self.width + i) * 3 + 1] = b\\r\\\
+			end\\r\\\
+		end\\r\\\
+		if t or self.overwrite then\\r\\\
+			for i = x1, x2 do\\r\\\
+				self.buffer[(y1 * self.width + i) * 3 + 2] = t\\r\\\
+			end\\r\\\
+		end\\r\\\
+		if c or self.overwrite then\\r\\\
+			for i = x1, x2 do\\r\\\
+				self.buffer[(y1 * self.width + i) * 3 + 3] = c\\r\\\
+			end\\r\\\
+		end\\r\\\
+	else\\r\\\
+		local delta_x = x2 - x1\\r\\\
+		local ix = delta_x > 0 and 1 or -1\\r\\\
+		delta_x = 2 * math.abs(delta_x)\\r\\\
+		local delta_y = y2 - y1\\r\\\
+		local iy = delta_y > 0 and 1 or -1\\r\\\
+		delta_y = 2 * math.abs(delta_y)\\r\\\
+		self:drawPixel(x1, y1, b, t, c)\\r\\\
+		if delta_x >= delta_y then\\r\\\
+			local error = delta_y - delta_x / 2\\r\\\
+			while x1 ~= x2 do\\r\\\
+				if (error >= 0) and ((error ~= 0) or (ix > 0)) then\\r\\\
+					error = error - delta_x\\r\\\
+					y1 = y1 + iy\\r\\\
+				end\\r\\\
+				error = error + delta_y\\r\\\
+				x1 = x1 + ix\\r\\\
+				self:drawPixel(x1, y1, b, t, c)\\r\\\
+			end\\r\\\
+		else\\r\\\
+			local error = delta_x - delta_y / 2\\r\\\
+			while y1 ~= y2 do\\r\\\
+				if (error >= 0) and ((error ~= 0) or (iy > 0)) then\\r\\\
+					error = error - delta_y\\r\\\
+					x1 = x1 + ix\\r\\\
+				end\\r\\\
+				error = error + delta_x\\r\\\
+				y1 = y1 + iy\\r\\\
+				self:drawPixel(x1, y1, b, t, c)\\r\\\
+			end\\r\\\
+		end\\r\\\
+	end\\r\\\
+end\\r\\\
+\\r\\\
+function surf:drawRect(x, y, width, height, b, t, c)\\r\\\
+	self:drawLine(x, y, x + width - 1, y, b, t, c)\\r\\\
+	self:drawLine(x, y, x, y + height - 1, b, t, c)\\r\\\
+	self:drawLine(x + width - 1, y, x + width - 1, y + height - 1, b, t, c)\\r\\\
+	self:drawLine(x, y + height - 1, x + width - 1, y + height - 1, b, t, c)\\r\\\
+end\\r\\\
+\\r\\\
+function surf:fillRect(x, y, width, height, b, t, c)\\r\\\
+	x, y, width, height = clipRect(x + self.ox, y + self.oy, width, height, self.cx, self.cy, self.cwidth, self.cheight)\\r\\\
+\\r\\\
+	if b or self.overwrite then\\r\\\
+		for j = 0, height - 1 do\\r\\\
+			for i = 0, width - 1 do\\r\\\
+				self.buffer[((j + y) * self.width + i + x) * 3 + 1] = b\\r\\\
+			end\\r\\\
+		end\\r\\\
+	end\\r\\\
+	if t or self.overwrite then\\r\\\
+		for j = 0, height - 1 do\\r\\\
+			for i = 0, width - 1 do\\r\\\
+				self.buffer[((j + y) * self.width + i + x) * 3 + 2] = t\\r\\\
+			end\\r\\\
+		end\\r\\\
+	end\\r\\\
+	if c or self.overwrite then\\r\\\
+		for j = 0, height - 1 do\\r\\\
+			for i = 0, width - 1 do\\r\\\
+				self.buffer[((j + y) * self.width + i + x) * 3 + 3] = c\\r\\\
+			end\\r\\\
+		end\\r\\\
+	end\\r\\\
+end\\r\\\
+\\r\\\
+function surf:drawTriangle(x1, y1, x2, y2, x3, y3, b, t, c)\\r\\\
+	self:drawLine(x1, y1, x2, y2, b, t, c)\\r\\\
+	self:drawLine(x2, y2, x3, y3, b, t, c)\\r\\\
+	self:drawLine(x3, y3, x1, y1, b, t, c)\\r\\\
+end\\r\\\
+\\r\\\
+function surf:fillTriangle(x1, y1, x2, y2, x3, y3, b, t, c)\\r\\\
+	if y1 > y2 then\\r\\\
+		local tempx, tempy = x1, y1\\r\\\
+		x1, y1 = x2, y2\\r\\\
+		x2, y2 = tempx, tempy\\r\\\
+	end\\r\\\
+	if y1 > y3 then\\r\\\
+		local tempx, tempy = x1, y1\\r\\\
+		x1, y1 = x3, y3\\r\\\
+		x3, y3 = tempx, tempy\\r\\\
+	end\\r\\\
+	if y2 > y3 then\\r\\\
+		local tempx, tempy = x2, y2\\r\\\
+		x2, y2 = x3, y3\\r\\\
+		x3, y3 = tempx, tempy\\r\\\
+	end\\r\\\
+	if y1 == y2 and x1 > x2 then\\r\\\
+		local temp = x1\\r\\\
+		x1 = x2\\r\\\
+		x2 = temp\\r\\\
+	end\\r\\\
+	if y2 == y3 and x2 > x3 then\\r\\\
+		local temp = x2\\r\\\
+		x2 = x3\\r\\\
+		x3 = temp\\r\\\
+	end\\r\\\
+\\r\\\
+	local x4, y4\\r\\\
+	if x1 <= x2 then\\r\\\
+		x4 = x1 + (y2 - y1) / (y3 - y1) * (x3 - x1)\\r\\\
+		y4 = y2\\r\\\
+		local tempx, tempy = x2, y2\\r\\\
+		x2, y2 = x4, y4\\r\\\
+		x4, y4 = tempx, tempy\\r\\\
+	else\\r\\\
+		x4 = x1 + (y2 - y1) / (y3 - y1) * (x3 - x1)\\r\\\
+		y4 = y2\\r\\\
+	end\\r\\\
+\\r\\\
+	local finvslope1 = (x2 - x1) / (y2 - y1)\\r\\\
+	local finvslope2 = (x4 - x1) / (y4 - y1)\\r\\\
+	local linvslope1 = (x3 - x2) / (y3 - y2)\\r\\\
+	local linvslope2 = (x3 - x4) / (y3 - y4)\\r\\\
+\\r\\\
+	local xstart, xend, dxstart, dxend\\r\\\
+	for y = math.ceil(y1 + 0.5) - 0.5, math.floor(y3 - 0.5) + 0.5, 1 do\\r\\\
+		if y <= y2 then -- first half\\r\\\
+			xstart = x1 + finvslope1 * (y - y1)\\r\\\
+			xend = x1 + finvslope2 * (y - y1)\\r\\\
+		else -- second half\\r\\\
+			xstart = x3 - linvslope1 * (y3 - y)\\r\\\
+			xend = x3 - linvslope2 * (y3 - y)\\r\\\
+		end\\r\\\
+\\r\\\
+		dxstart, dxend = math.ceil(xstart - 0.5), math.floor(xend - 0.5)\\r\\\
+		if dxstart <= dxend then\\r\\\
+			self:drawLine(dxstart, y - 0.5, dxend, y - 0.5, b, t, c)\\r\\\
+		end\\r\\\
+	end\\r\\\
+end\\r\\\
+\\r\\\
+function surf:drawEllipse(x, y, width, height, b, t, c)\\r\\\
+	for i = 0, _eprc - 1 do\\r\\\
+		self:drawLine(math_floor(x + _ecos[i + 1] * (width - 1) + 0.5), math_floor(y + _esin[i + 1] * (height - 1) + 0.5), math_floor(x + _ecos[(i + 1) % _eprc + 1] * (width - 1) + 0.5), math_floor(y + _esin[(i + 1) % _eprc + 1] * (height - 1) + 0.5), b, t, c)\\r\\\
+	end\\r\\\
+end\\r\\\
+\\r\\\
+function surf:fillEllipse(x, y, width, height, b, t, c)\\r\\\
+	x, y = x + self.ox, y + self.oy\\r\\\
+\\r\\\
+	local sx, sy\\r\\\
+	for j = 0, height - 1 do\\r\\\
+		for i = 0, width - 1 do\\r\\\
+			sx, sy = i + x, j + y\\r\\\
+			if ((i + 0.5) / width * 2 - 1) ^ 2 + ((j + 0.5) / height * 2 - 1) ^ 2 <= 1 and sx >= self.cx and sx < self.cx + self.cwidth and sy >= self.cy and sy < self.cy + self.cheight then\\r\\\
+				if b or self.overwrite then \\r\\\
+					self.buffer[(sy * self.width + sx) * 3 + 1] = b\\r\\\
+				end\\r\\\
+				if t or self.overwrite then\\r\\\
+					self.buffer[(sy * self.width + sx) * 3 + 2] = t\\r\\\
+				end\\r\\\
+				if c or self.overwrite then \\r\\\
+					self.buffer[(sy * self.width + sx) * 3 + 3] = c\\r\\\
+				end\\r\\\
+			end\\r\\\
+		end\\r\\\
+	end\\r\\\
+end\\r\\\
+\\r\\\
+function surf:drawArc(x, y, width, height, fromangle, toangle, b, t, c)\\r\\\
+	if fromangle > toangle then\\r\\\
+		local temp = fromangle\\r\\\
+		fromangle = toangle\\r\\\
+		temp = toangle\\r\\\
+	end\\r\\\
+	fromangle = math_floor(fromangle / math.pi / 2 * _eprc + 0.5)\\r\\\
+	toangle = math_floor(toangle / math.pi / 2 * _eprc + 0.5) - 1\\r\\\
+	\\r\\\
+	for j = fromangle, toangle do\\r\\\
+		local i = j % _eprc\\r\\\
+		self:drawLine(math_floor(x + _ecos[i + 1] * (width - 1) + 0.5), math_floor(y + _esin[i + 1] * (height - 1) + 0.5), math_floor(x + _ecos[(i + 1) % _eprc + 1] * (width - 1) + 0.5), math_floor(y + _esin[(i + 1) % _eprc + 1] * (height - 1) + 0.5), b, t, c)\\r\\\
+	end\\r\\\
+end\\r\\\
+\\r\\\
+function surf:fillArc(x, y, width, height, fromangle, toangle, b, t, c)\\r\\\
+	x, y = x + self.ox, y + self.oy\\r\\\
+\\r\\\
+	if fromangle > toangle then\\r\\\
+		local temp = fromangle\\r\\\
+		fromangle = toangle\\r\\\
+		temp = toangle\\r\\\
+	end\\r\\\
+	local diff = toangle - fromangle\\r\\\
+	fromangle = fromangle % (math.pi * 2)\\r\\\
+\\r\\\
+	local fx, fy, sx, sy, dir\\r\\\
+	for j = 0, height - 1 do\\r\\\
+		for i = 0, width - 1 do\\r\\\
+			fx, fy = (i + 0.5) / width * 2 - 1, (j + 0.5) / height * 2 - 1\\r\\\
+			sx, sy = i + x, j + y\\r\\\
+			dir = math_atan2(-fy, fx) % (math.pi * 2)\\r\\\
+			if fx ^ 2 + fy ^ 2 <= 1 and ((dir >= fromangle and dir - fromangle <= diff) or (dir <= (fromangle + diff) % (math.pi * 2))) and sx >= self.cx and sx < self.cx + self.cwidth and sy >= self.cy and sy < self.cy + self.cheight then\\r\\\
+				if b or self.overwrite then \\r\\\
+					self.buffer[(sy * self.width + sx) * 3 + 1] = b\\r\\\
+				end\\r\\\
+				if t or self.overwrite then\\r\\\
+					self.buffer[(sy * self.width + sx) * 3 + 2] = t\\r\\\
+				end\\r\\\
+				if c or self.overwrite then \\r\\\
+					self.buffer[(sy * self.width + sx) * 3 + 3] = c\\r\\\
+				end\\r\\\
+			end\\r\\\
+		end\\r\\\
+	end\\r\\\
+end\\r\\\
+function surf:drawSurface(surf2, x, y, width, height, sx, sy, swidth, sheight)\\r\\\
+	x, y, width, height, sx, sy, swidth, sheight = x + self.ox, y + self.oy, width or surf2.width, height or surf2.height, sx or 0, sy or 0, swidth or surf2.width, sheight or surf2.height\\r\\\
+\\r\\\
+	if width == swidth and height == sheight then\\r\\\
+		local nx, ny\\r\\\
+		nx, ny, width, height = clipRect(x, y, width, height, self.cx, self.cy, self.cwidth, self.cheight)\\r\\\
+		swidth, sheight = width, height\\r\\\
+		if nx > x then\\r\\\
+			sx = sx + nx - x\\r\\\
+			x = nx\\r\\\
+		end\\r\\\
+		if ny > y then\\r\\\
+			sy = sy + ny - y\\r\\\
+			y = ny\\r\\\
+		end\\r\\\
+		nx, ny, swidth, sheight = clipRect(sx, sy, swidth, sheight, 0, 0, surf2.width, surf2.height)\\r\\\
+		width, height = swidth, sheight\\r\\\
+		if nx > sx then\\r\\\
+			x = x + nx - sx\\r\\\
+			sx = nx\\r\\\
+		end\\r\\\
+		if ny > sy then\\r\\\
+			y = y + ny - sy\\r\\\
+			sy = ny\\r\\\
+		end\\r\\\
+\\r\\\
+		local b, t, c\\r\\\
+		for j = 0, height - 1 do\\r\\\
+			for i = 0, width - 1 do\\r\\\
+				b = surf2.buffer[((j + sy) * surf2.width + i + sx) * 3 + 1]\\r\\\
+				t = surf2.buffer[((j + sy) * surf2.width + i + sx) * 3 + 2]\\r\\\
+				c = surf2.buffer[((j + sy) * surf2.width + i + sx) * 3 + 3]\\r\\\
+				if b or self.overwrite then\\r\\\
+					self.buffer[((j + y) * self.width + i + x) * 3 + 1] = b\\r\\\
+				end\\r\\\
+				if t or self.overwrite then\\r\\\
+					self.buffer[((j + y) * self.width + i + x) * 3 + 2] = t\\r\\\
+				end\\r\\\
+				if c or self.overwrite then\\r\\\
+					self.buffer[((j + y) * self.width + i + x) * 3 + 3] = c\\r\\\
+				end\\r\\\
+			end\\r\\\
+		end\\r\\\
+	else\\r\\\
+		local hmirror, vmirror = false, false\\r\\\
+		if width < 0 then\\r\\\
+			hmirror = true\\r\\\
+			x = x + width\\r\\\
+		end\\r\\\
+		if height < 0 then\\r\\\
+			vmirror = true\\r\\\
+			y = y + height\\r\\\
+		end\\r\\\
+		if swidth < 0 then\\r\\\
+			hmirror = not hmirror\\r\\\
+			sx = sx + swidth\\r\\\
+		end\\r\\\
+		if sheight < 0 then\\r\\\
+			vmirror = not vmirror\\r\\\
+			sy = sy + sheight\\r\\\
+		end\\r\\\
+		width, height, swidth, sheight = math.abs(width), math.abs(height), math.abs(swidth), math.abs(sheight)\\r\\\
+		\\r\\\
+		local xscale, yscale, px, py, ssx, ssy, b, t, c = swidth / width, sheight / height\\r\\\
+		for j = 0, height - 1 do\\r\\\
+			for i = 0, width - 1 do\\r\\\
+				px, py = math_floor((i + 0.5) * xscale), math_floor((j + 0.5) * yscale) \\r\\\
+				if hmirror then\\r\\\
+					ssx = x + width - i - 1\\r\\\
+				else\\r\\\
+					ssx = i + x\\r\\\
+				end\\r\\\
+				if vmirror then\\r\\\
+					ssy = y + height - j - 1\\r\\\
+				else\\r\\\
+					ssy = j + y\\r\\\
+				end\\r\\\
+\\r\\\
+				if ssx >= self.cx and ssx < self.cx + self.cwidth and ssy >= self.cy and ssy < self.cy + self.cheight and px >= 0 and px < surf2.width and py >= 0 and py < surf2.height then\\r\\\
+					b = surf2.buffer[(py * surf2.width + px) * 3 + 1]\\r\\\
+					t = surf2.buffer[(py * surf2.width + px) * 3 + 2]\\r\\\
+					c = surf2.buffer[(py * surf2.width + px) * 3 + 3]\\r\\\
+					if b or self.overwrite then\\r\\\
+						self.buffer[(ssy * self.width + ssx) * 3 + 1] = b\\r\\\
+					end\\r\\\
+					if t or self.overwrite then\\r\\\
+						self.buffer[(ssy * self.width + ssx) * 3 + 2] = t\\r\\\
+					end\\r\\\
+					if c or self.overwrite then\\r\\\
+						self.buffer[(ssy * self.width + ssx) * 3 + 3] = c\\r\\\
+					end\\r\\\
+				end\\r\\\
+			end\\r\\\
+		end\\r\\\
+	end\\r\\\
+end\\r\\\
+\\r\\\
+function surf:drawSurfaceRotated(surf2, x, y, ox, oy, angle)\\r\\\
+	local sin, cos, sx, sy, px, py = math.sin(angle), math.cos(angle)\\r\\\
+	for j = math.floor(-surf2.height * 0.75), math.ceil(surf2.height * 0.75) do\\r\\\
+		for i = math.floor(-surf2.width * 0.75), math.ceil(surf2.width * 0.75) do\\r\\\
+			sx, sy, px, py = x + i, y + j, math_floor(cos * (i + 0.5) - sin * (j + 0.5) + ox), math_floor(sin * (i + 0.5) + cos * (j + 0.5) + oy)\\r\\\
+			if sx >= self.cx and sx < self.cx + self.cwidth and sy >= self.cy and sy < self.cy + self.cheight and px >= 0 and px < surf2.width and py >= 0 and py < surf2.height then\\r\\\
+				b = surf2.buffer[(py * surf2.width + px) * 3 + 1]\\r\\\
+				t = surf2.buffer[(py * surf2.width + px) * 3 + 2]\\r\\\
+				c = surf2.buffer[(py * surf2.width + px) * 3 + 3]\\r\\\
+				if b or self.overwrite then\\r\\\
+					self.buffer[(sy * self.width + sx) * 3 + 1] = b\\r\\\
+				end\\r\\\
+				if t or self.overwrite then\\r\\\
+					self.buffer[(sy * self.width + sx) * 3 + 2] = t\\r\\\
+				end\\r\\\
+				if c or self.overwrite then\\r\\\
+					self.buffer[(sy * self.width + sx) * 3 + 3] = c\\r\\\
+				end\\r\\\
+			end\\r\\\
+		end\\r\\\
+	end\\r\\\
+end\\r\\\
+\\r\\\
+function surf:drawSurfacesInterlaced(surfs, x, y, step)\\r\\\
+	x, y, step = x + self.ox, y + self.oy, step or 0\\r\\\
+	local width, height = surfs[1].width, surfs[1].height\\r\\\
+	for i = 2, #surfs do\\r\\\
+		if surfs[i].width ~= width or surfs[i].height ~= height then\\r\\\
+			error(\\\"surfaces should be the same size\\\")\\r\\\
+		end\\r\\\
+	end\\r\\\
+	\\r\\\
+	local sx, sy, swidth, sheight, index, b, t, c = clipRect(x, y, width, height, self.cx, self.cy, self.cwidth, self.cheight)\\r\\\
+	for j = sy, sy + sheight - 1 do\\r\\\
+		for i = sx, sx + swidth - 1 do\\r\\\
+			index = (i + j + step) % #surfs + 1\\r\\\
+			b = surfs[index].buffer[((j - sy) * surfs[index].width + i - sx) * 3 + 1]\\r\\\
+			t = surfs[index].buffer[((j - sy) * surfs[index].width + i - sx) * 3 + 2]\\r\\\
+			c = surfs[index].buffer[((j - sy) * surfs[index].width + i - sx) * 3 + 3]\\r\\\
+			if b or self.overwrite then\\r\\\
+				self.buffer[(j * self.width + i) * 3 + 1] = b\\r\\\
+			end\\r\\\
+			if t or self.overwrite then\\r\\\
+				self.buffer[(j * self.width + i) * 3 + 2] = t\\r\\\
+			end\\r\\\
+			if c or self.overwrite then\\r\\\
+				self.buffer[(j * self.width + i) * 3 + 3] = c\\r\\\
+			end\\r\\\
+		end\\r\\\
+	end\\r\\\
+end\\r\\\
+\\r\\\
+function surf:drawSurfaceSmall(surf2, x, y)\\r\\\
+	x, y = x + self.ox, y + self.oy\\r\\\
+	if surf2.width % 2 ~= 0 or surf2.height % 3 ~= 0 then\\r\\\
+		error(\\\"surface width must be a multiple of 2 and surface height a multiple of 3\\\")\\r\\\
+	end\\r\\\
+\\r\\\
+	local sub, char, c1, c2, c3, c4, c5, c6 = 32768\\r\\\
+	for j = 0, surf2.height / 3 - 1 do\\r\\\
+		for i = 0, surf2.width / 2 - 1 do\\r\\\
+			if i + x >= self.cx and i + x < self.cx + self.cwidth and j + y >= self.cy and j + y < self.cy + self.cheight then\\r\\\
+				char, c1, c2, c3, c4, c5, c6 = 0,\\r\\\
+				surf2.buffer[((j * 3) * surf2.width + i * 2) * 3 + 1],\\r\\\
+				surf2.buffer[((j * 3) * surf2.width + i * 2 + 1) * 3 + 1],\\r\\\
+				surf2.buffer[((j * 3 + 1) * surf2.width + i * 2) * 3 + 1],\\r\\\
+				surf2.buffer[((j * 3 + 1) * surf2.width + i * 2 + 1) * 3 + 1],\\r\\\
+				surf2.buffer[((j * 3 + 2) * surf2.width + i * 2) * 3 + 1],\\r\\\
+				surf2.buffer[((j * 3 + 2) * surf2.width + i * 2 + 1) * 3 + 1]\\r\\\
+				if c1 ~= c6 then\\r\\\
+	                sub = c1\\r\\\
+	                char = 1\\r\\\
+	            end\\r\\\
+	            if c2 ~= c6 then\\r\\\
+	                sub = c2\\r\\\
+	                char = char + 2\\r\\\
+	            end\\r\\\
+	            if c3 ~= c6 then\\r\\\
+	                sub = c3\\r\\\
+	                char = char + 4\\r\\\
+	            end\\r\\\
+	            if c4 ~= c6 then\\r\\\
+	                sub = c4\\r\\\
+	                char = char + 8\\r\\\
+	            end\\r\\\
+	            if c5 ~= c6 then\\r\\\
+	                sub = c5\\r\\\
+	                char = char + 16\\r\\\
+	            end\\r\\\
+	            self.buffer[((j + y) * self.width + i + x) * 3 + 1] = c6\\r\\\
+	            self.buffer[((j + y) * self.width + i + x) * 3 + 2] = sub\\r\\\
+	            self.buffer[((j + y) * self.width + i + x) * 3 + 3] = _chars[128 + char]\\r\\\
+			end\\r\\\
+		end\\r\\\
+	end\\r\\\
+end\\r\\\
+function surf:flip(horizontal, vertical)\\r\\\
+	local ox, oy, nx, ny, tb, tt, tc\\r\\\
+	if horizontal then\\r\\\
+		for i = 0, math.ceil(self.cwidth / 2) - 1 do\\r\\\
+			for j = 0, self.cheight - 1 do\\r\\\
+				ox, oy, nx, ny = i + self.cx, j + self.cy, self.cx + self.cwidth - i - 1, j + self.cy\\r\\\
+				tb = self.buffer[(oy * self.width + ox) * 3 + 1]\\r\\\
+				tt = self.buffer[(oy * self.width + ox) * 3 + 2]\\r\\\
+				tc = self.buffer[(oy * self.width + ox) * 3 + 3]\\r\\\
+				self.buffer[(oy * self.width + ox) * 3 + 1] = self.buffer[(ny * self.width + nx) * 3 + 1]\\r\\\
+				self.buffer[(oy * self.width + ox) * 3 + 2] = self.buffer[(ny * self.width + nx) * 3 + 2]\\r\\\
+				self.buffer[(oy * self.width + ox) * 3 + 3] = self.buffer[(ny * self.width + nx) * 3 + 3]\\r\\\
+				self.buffer[(ny * self.width + nx) * 3 + 1] = tb\\r\\\
+				self.buffer[(ny * self.width + nx) * 3 + 2] = tt\\r\\\
+				self.buffer[(ny * self.width + nx) * 3 + 3] = tc\\r\\\
+			end\\r\\\
+		end\\r\\\
+	end\\r\\\
+	if vertical then\\r\\\
+		for j = 0, math.ceil(self.cheight / 2) - 1 do\\r\\\
+			for i = 0, self.cwidth - 1 do\\r\\\
+				ox, oy, nx, ny = i + self.cx, j + self.cy, i + self.cx, self.cy + self.cheight - j - 1\\r\\\
+				tb = self.buffer[(oy * self.width + ox) * 3 + 1]\\r\\\
+				tt = self.buffer[(oy * self.width + ox) * 3 + 2]\\r\\\
+				tc = self.buffer[(oy * self.width + ox) * 3 + 3]\\r\\\
+				self.buffer[(oy * self.width + ox) * 3 + 1] = self.buffer[(ny * self.width + nx) * 3 + 1]\\r\\\
+				self.buffer[(oy * self.width + ox) * 3 + 2] = self.buffer[(ny * self.width + nx) * 3 + 2]\\r\\\
+				self.buffer[(oy * self.width + ox) * 3 + 3] = self.buffer[(ny * self.width + nx) * 3 + 3]\\r\\\
+				self.buffer[(ny * self.width + nx) * 3 + 1] = tb\\r\\\
+				self.buffer[(ny * self.width + nx) * 3 + 2] = tt\\r\\\
+				self.buffer[(ny * self.width + nx) * 3 + 3] = tc\\r\\\
+			end\\r\\\
+		end\\r\\\
+	end\\r\\\
+end\\r\\\
+\\r\\\
+function surf:shift(x, y, b, t, c)\\r\\\
+	local hdir, vdir = x < 0, y < 0\\r\\\
+	local xstart, xend = self.cx, self.cx + self.cwidth - 1\\r\\\
+	local ystart, yend = self.cy, self.cy + self.cheight - 1\\r\\\
+	local nx, ny\\r\\\
+	for j = vdir and ystart or yend, vdir and yend or ystart, vdir and 1 or -1 do\\r\\\
+		for i = hdir and xstart or xend, hdir and xend or xstart, hdir and 1 or -1 do\\r\\\
+			nx, ny = i - x, j - y\\r\\\
+			if nx >= 0 and nx < self.width and ny >= 0 and ny < self.height then\\r\\\
+				self.buffer[(j * self.width + i) * 3 + 1] = self.buffer[(ny * self.width + nx) * 3 + 1]\\r\\\
+				self.buffer[(j * self.width + i) * 3 + 2] = self.buffer[(ny * self.width + nx) * 3 + 2]\\r\\\
+				self.buffer[(j * self.width + i) * 3 + 3] = self.buffer[(ny * self.width + nx) * 3 + 3] \\r\\\
+			else\\r\\\
+				self.buffer[(j * self.width + i) * 3 + 1] = b\\r\\\
+				self.buffer[(j * self.width + i) * 3 + 2] = t\\r\\\
+				self.buffer[(j * self.width + i) * 3 + 3] = c\\r\\\
+			end\\r\\\
+		end\\r\\\
+	end\\r\\\
+end\\r\\\
+\\r\\\
+function surf:map(colors)\\r\\\
+	local c\\r\\\
+	for j = self.cy, self.cy + self.cheight - 1 do\\r\\\
+		for i = self.cx, self.cx + self.cwidth - 1 do\\r\\\
+			c = colors[self.buffer[(j * self.width + i) * 3 + 1]]\\r\\\
+			if c or self.overwrite then\\r\\\
+				self.buffer[(j * self.width + i) * 3 + 1] = c\\r\\\
+			end\\r\\\
+		end\\r\\\
+	end\\r\\\
+end\\r\\\
+surface.palette = { }\\r\\\
+surface.palette.cc = {[1]=\\\"F0F0F0\\\",[2]=\\\"F2B233\\\",[4]=\\\"E57FD8\\\",[8]=\\\"99B2F2\\\",[16]=\\\"DEDE6C\\\",[32]=\\\"7FCC19\\\",[64]=\\\"F2B2CC\\\",[128]=\\\"4C4C4C\\\",[256]=\\\"999999\\\",[512]=\\\"4C99B2\\\",[1024]=\\\"B266E5\\\",[2048]=\\\"3366CC\\\",[4096]=\\\"7F664C\\\",[8192]=\\\"57A64E\\\",[16384]=\\\"CC4C4C\\\",[32768]=\\\"191919\\\"}\\r\\\
+surface.palette.riko4 = {\\\"181818\\\",\\\"1D2B52\\\",\\\"7E2553\\\",\\\"008651\\\",\\\"AB5136\\\",\\\"5F564F\\\",\\\"7D7F82\\\",\\\"FF004C\\\",\\\"FFA300\\\",\\\"FFF023\\\",\\\"00E755\\\",\\\"29ADFF\\\",\\\"82769C\\\",\\\"FF77A9\\\",\\\"FECCA9\\\",\\\"ECECEC\\\"}\\r\\\
+surface.palette.redirection = {[0]=\\\"040404\\\",[1]=\\\"FFFFFF\\\"}\\r\\\
+\\r\\\
+local function setPalette(palette)\\r\\\
+	if palette == _palette then return end\\r\\\
+	_palette = palette\\r\\\
+	_rgbpal, _palr, _palg, _palb = { }, { }, { }, { }\\r\\\
+\\r\\\
+	local indices = { }\\r\\\
+	for k, v in pairs(_palette) do\\r\\\
+		if type(v) == \\\"string\\\" then\\r\\\
+			_palr[k] = tonumber(v:sub(1, 2), 16) / 255\\r\\\
+			_palg[k] = tonumber(v:sub(3, 4), 16) / 255\\r\\\
+			_palb[k] = tonumber(v:sub(5, 6), 16) / 255\\r\\\
+		elseif type(v) == \\\"number\\\" then\\r\\\
+			_palr[k] = math.floor(v / 65536) / 255\\r\\\
+			_palg[k] = (math.floor(v / 256) % 256) / 255\\r\\\
+			_palb[k] = (v % 256) / 255\\r\\\
+		end\\r\\\
+		indices[#indices + 1] = k\\r\\\
+	end\\r\\\
+\\r\\\
+	local pr, pg, pb, dist, d, id\\r\\\
+	for i = 0, _steps - 1 do\\r\\\
+		for j = 0, _steps - 1 do\\r\\\
+			for k = 0, _steps - 1 do\\r\\\
+				pr = (i + 0.5) / _steps\\r\\\
+				pg = (j + 0.5) / _steps\\r\\\
+				pb = (k + 0.5) / _steps\\r\\\
+\\r\\\
+				dist = 1e10\\r\\\
+				for l = 1, #indices do\\r\\\
+					d = (pr - _palr[indices[l]]) ^ 2 + (pg - _palg[indices[l]]) ^ 2 + (pb - _palb[indices[l]]) ^ 2\\r\\\
+					if d < dist then\\r\\\
+						dist = d\\r\\\
+						id = l\\r\\\
+					end\\r\\\
+				end\\r\\\
+				_rgbpal[i * _steps * _steps + j * _steps + k + 1] = indices[id]\\r\\\
+			end\\r\\\
+		end\\r\\\
+	end\\r\\\
+end\\r\\\
+\\r\\\
+\\r\\\
+\\r\\\
+function surf:toRGB(palette)\\r\\\
+	setPalette(palette)\\r\\\
+	local c\\r\\\
+	for j = 0, self.height - 1 do\\r\\\
+		for i = 0, self.width - 1 do\\r\\\
+			c = self.buffer[(j * self.width + i) * 3 + 1] \\r\\\
+			self.buffer[(j * self.width + i) * 3 + 1] = _palr[c]\\r\\\
+			self.buffer[(j * self.width + i) * 3 + 2] = _palg[c]\\r\\\
+			self.buffer[(j * self.width + i) * 3 + 3] = _palb[c]\\r\\\
+		end\\r\\\
+	end\\r\\\
+end\\r\\\
+\\r\\\
+function surf:toPalette(palette, dither)\\r\\\
+	setPalette(palette)\\r\\\
+	local scale, r, g, b, nr, ng, nb, c, dr, dg, db = _steps - 1\\r\\\
+	for j = 0, self.height - 1 do\\r\\\
+		for i = 0, self.width - 1 do\\r\\\
+			r = self.buffer[(j * self.width + i) * 3 + 1]\\r\\\
+			g = self.buffer[(j * self.width + i) * 3 + 2]\\r\\\
+			b = self.buffer[(j * self.width + i) * 3 + 3]\\r\\\
+			r = (r > 1) and 1 or r\\r\\\
+			r = (r < 0) and 0 or r\\r\\\
+			g = (g > 1) and 1 or g\\r\\\
+			g = (g < 0) and 0 or g\\r\\\
+			b = (b > 1) and 1 or b\\r\\\
+			b = (b < 0) and 0 or b\\r\\\
+			\\r\\\
+			nr = (r == 1) and scale or math_floor(r * _steps)\\r\\\
+			ng = (g == 1) and scale or math_floor(g * _steps)\\r\\\
+			nb = (b == 1) and scale or math_floor(b * _steps)\\r\\\
+			c = _rgbpal[nr * _steps * _steps + ng * _steps + nb + 1]\\r\\\
+			if dither then\\r\\\
+				dr = (r - _palr[c]) / 16\\r\\\
+				dg = (g - _palg[c]) / 16\\r\\\
+				db = (b - _palb[c]) / 16\\r\\\
+\\r\\\
+				if i < self.width - 1 then\\r\\\
+					self.buffer[(j * self.width + i + 1) * 3 + 1] = self.buffer[(j * self.width + i + 1) * 3 + 1] + dr * 7\\r\\\
+					self.buffer[(j * self.width + i + 1) * 3 + 2] = self.buffer[(j * self.width + i + 1) * 3 + 2] + dg * 7\\r\\\
+					self.buffer[(j * self.width + i + 1) * 3 + 3] = self.buffer[(j * self.width + i + 1) * 3 + 3] + db * 7\\r\\\
+				end\\r\\\
+				if j < self.height - 1 then\\r\\\
+					if i > 0 then\\r\\\
+						self.buffer[((j + 1) * self.width + i - 1) * 3 + 1] = self.buffer[((j + 1) * self.width + i - 1) * 3 + 1] + dr * 3\\r\\\
+						self.buffer[((j + 1) * self.width + i - 1) * 3 + 2] = self.buffer[((j + 1) * self.width + i - 1) * 3 + 2] + dg * 3\\r\\\
+						self.buffer[((j + 1) * self.width + i - 1) * 3 + 3] = self.buffer[((j + 1) * self.width + i - 1) * 3 + 3] + db * 3\\r\\\
+					end\\r\\\
+					self.buffer[((j + 1) * self.width + i) * 3 + 1] = self.buffer[((j + 1) * self.width + i) * 3 + 1] + dr * 5\\r\\\
+					self.buffer[((j + 1) * self.width + i) * 3 + 2] = self.buffer[((j + 1) * self.width + i) * 3 + 2] + dg * 5\\r\\\
+					self.buffer[((j + 1) * self.width + i) * 3 + 3] = self.buffer[((j + 1) * self.width + i) * 3 + 3] + db * 5\\r\\\
+					if i < self.width - 1 then\\r\\\
+						self.buffer[((j + 1) * self.width + i + 1) * 3 + 1] = self.buffer[((j + 1) * self.width + i + 1) * 3 + 1] + dr * 1\\r\\\
+						self.buffer[((j + 1) * self.width + i + 1) * 3 + 2] = self.buffer[((j + 1) * self.width + i + 1) * 3 + 2] + dg * 1\\r\\\
+						self.buffer[((j + 1) * self.width + i + 1) * 3 + 3] = self.buffer[((j + 1) * self.width + i + 1) * 3 + 3] + db * 1\\r\\\
+					end\\r\\\
+				end\\r\\\
+			end\\r\\\
+			self.buffer[(j * self.width + i) * 3 + 1] = c\\r\\\
+			self.buffer[(j * self.width + i) * 3 + 2] = nil\\r\\\
+			self.buffer[(j * self.width + i) * 3 + 3] = nil\\r\\\
+		end\\r\\\
+	end\\r\\\
+end\\r\\\
+function surface.loadFont(surf)\\r\\\
+	local font = {width = surf.width, height = surf.height - 1}\\r\\\
+	font.buffer =  { }\\r\\\
+	font.indices = {0}\\r\\\
+	font.widths = { }\\r\\\
+\\r\\\
+	local startc, hitc, curc = surf.buffer[((surf.height - 1) * surf.width) * 3 + 1]\\r\\\
+	for i = 0, surf.width - 1 do\\r\\\
+		curc = surf.buffer[((surf.height - 1) * surf.width + i) * 3 + 1]\\r\\\
+		if curc ~= startc then\\r\\\
+			hitc = curc\\r\\\
+			break\\r\\\
+		end\\r\\\
+	end\\r\\\
+\\r\\\
+	for j = 0, surf.height - 2 do\\r\\\
+		for i = 0, surf.width - 1 do\\r\\\
+			font.buffer[j * font.width + i + 1] = surf.buffer[(j * surf.width + i) * 3 + 1] == hitc\\r\\\
+		end\\r\\\
+	end\\r\\\
+\\r\\\
+	local curchar = 1\\r\\\
+	for i = 0, surf.width - 1 do\\r\\\
+		if surf.buffer[((surf.height - 1) * surf.width + i) * 3 + 1] == hitc then \\r\\\
+			font.widths[curchar] = i - font.indices[curchar]\\r\\\
+			curchar = curchar + 1\\r\\\
+			font.indices[curchar] = i + 1\\r\\\
+		end\\r\\\
+	end\\r\\\
+	font.widths[curchar] = font.width - font.indices[curchar]\\r\\\
+\\r\\\
+	return font\\r\\\
+end\\r\\\
+\\r\\\
+function surface.getTextSize(str, font)\\r\\\
+	local cx, cy, maxx = 0, 0, 0\\r\\\
+	local ox, char = cx\\r\\\
+\\r\\\
+	for i = 1, #str do\\r\\\
+		char = str:byte(i) - 31\\r\\\
+\\r\\\
+		if char + 31 == 10 then -- newline\\r\\\
+			cx = ox\\r\\\
+			cy = cy + font.height + 1\\r\\\
+		elseif font.indices[char] then\\r\\\
+			cx = cx + font.widths[char] + 1\\r\\\
+		else\\r\\\
+			cx = cx + font.widths[1]\\r\\\
+		end\\r\\\
+		if cx > maxx then\\r\\\
+			maxx = cx\\r\\\
+		end\\r\\\
+	end\\r\\\
+\\r\\\
+	return maxx - 1, cy + font.height\\r\\\
+end\\r\\\
+\\r\\\
+function surf:drawText(str, font, x, y, b, t, c)\\r\\\
+	local cx, cy = x + self.ox, y + self.oy\\r\\\
+	local ox, char, idx = cx\\r\\\
+\\r\\\
+	for i = 1, #str do\\r\\\
+		char = str:byte(i) - 31\\r\\\
+\\r\\\
+		if char + 31 == 10 then -- newline\\r\\\
+			cx = ox\\r\\\
+			cy = cy + font.height + 1\\r\\\
+		elseif font.indices[char] then\\r\\\
+			for i = 0, font.widths[char] - 1 do\\r\\\
+				for j = 0, font.height - 1 do\\r\\\
+					x, y = cx + i, cy + j\\r\\\
+					if font.buffer[j * font.width + i + font.indices[char] + 1] then\\r\\\
+						if x >= self.cx and x < self.cx + self.cwidth and y >= self.cy and y < self.cy + self.cheight then\\r\\\
+							idx = (y * self.width + x) * 3\\r\\\
+							if b or self.overwrite then\\r\\\
+								self.buffer[idx + 1] = b\\r\\\
+							end\\r\\\
+							if t or self.overwrite then\\r\\\
+								self.buffer[idx + 2] = t\\r\\\
+							end\\r\\\
+							if c or self.overwrite then\\r\\\
+								self.buffer[idx + 3] = c\\r\\\
+							end\\r\\\
+						end\\r\\\
+					end\\r\\\
+				end\\r\\\
+			end\\r\\\
+			cx = cx + font.widths[char] + 1\\r\\\
+		else\\r\\\
+			cx = cx + font.widths[1]\\r\\\
+		end\\r\\\
+	end\\r\\\
+end\\r\\\
+local smap = { }\\r\\\
+surface.smap = smap \\r\\\
+\\r\\\
+function surface.loadSpriteMap(surf, spwidth, spheight, sprites)\\r\\\
+	if surf.width % spwidth ~= 0 or surf.height % spheight ~= 0 then\\r\\\
+		error(\\\"sprite width/height does not match smap width/height\\\")\\r\\\
+	end\\r\\\
+\\r\\\
+	local smap = setmetatable({ }, {__index = surface.smap})\\r\\\
+	smap.surf = surf\\r\\\
+	smap.spwidth = spwidth\\r\\\
+	smap.spheight = spheight\\r\\\
+	smap.sprites = sprites or ((surf.width / spwidth) * (surf.height / spheight))\\r\\\
+	smap.perline = surf.width / spwidth\\r\\\
+\\r\\\
+	return smap\\r\\\
+end\\r\\\
+\\r\\\
+function smap:pos(index, scale)\\r\\\
+	if index < 0 or index >= self.sprites then\\r\\\
+		error(\\\"sprite index out of bounds\\\")\\r\\\
+	end\\r\\\
+\\r\\\
+	return (index % self.perline) * self.spwidth, math.floor(index / self.perline) * self.spheight\\r\\\
+end\\r\\\
+\\r\\\
+function smap:sprite(index, x, y, width, height)\\r\\\
+	local sx, sy = self:pos(index)\\r\\\
+	return self.surf, x, y, width or self.spwidth, height or self.spheight, sx, sy, self.spwidth, self.spheight\\r\\\
+end\\r\\\
+end return surface\",\
+    [ \"gbin/welcome.exe\" ] = \"write(\\\"filename:\\\")\\\
+local welcomefile = read()\\\
+\\\
+local reply = apilib.changewelcome(welcomefile)\\\
+if reply == true then print(\\\"Welcome file changed\\\")\\\
+else print(\\\"change failed\\\") end\",\
+    [ \"etc/apilib/apilib\" ] = \"function changewelcome(filename)\\\
+    if fs.exists(filename) == false then return false end\\\
+    local tempfile = fs.open(\\\"/usr/minux-main/welcome.cfg\\\",\\\"w\\\")\\\
+    tempfile.writeLine(filename)\\\
+    tempfile.close()\\\
+    return true\\\
+end\",\
+    [ \"bin/welcome.sh\" ] = \"args = { ... }\\\
+local welcomefile = args[1]\\\
+\\\
+local reply = apilib.changewelcome(welcomefile)\\\
+if reply == true then print(\\\"Welcome file changed\\\")\\\
+else print(\\\"change failed\\\") end\",\
+  },\
+}")
+if fs.isReadOnly(outputPath) then
+	error("Output path is read-only. Abort.")
+elseif fs.getFreeSpace(outputPath) <= #archive then
+	error("Insufficient space. Abort.")
+end
+
+if fs.exists(outputPath) and fs.combine("", outputPath) ~= "" then
+	fs.delete(outputPath)
+end
+if selfDelete or (fs.combine("", outputPath) == shell.getRunningProgram()) then
+	fs.delete(shell.getRunningProgram())
+end
+for name, contents in pairs(archive.data) do
+	stc(colors.lightGray)
+	write("'" .. name .. "'...")
+	if contents == true then -- indicates empty directory
+		fs.makeDir(fs.combine(outputPath, name))
+	else
+		file = fs.open(fs.combine(outputPath, name), "w")
+		if file then
+			file.write(contents)
+			file.close()
+		end
+	end
+	if file then
+		stc(colors.green)
+		print("good")
+	else
+		stc(colors.red)
+		print("fail")
+	end
+end
+stc(colors.white)
+write("Unpacked to '")
+stc(colors.yellow)
+write(outputPath .. "/")
+stc(colors.white)
+print("'.")

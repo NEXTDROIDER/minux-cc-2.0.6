@@ -1,0 +1,96 @@
+-- tablature server functions, this file handles requests
+args = { ... }
+local clientid = tonumber(args[1])
+local req = args[2]
+
+-- catch invalid input
+if req == nil or req == "" then
+	minux.debug("TBS:E:801:invalid data","tablature")
+	local printstring = "TBS:REQ:NOID"
+	print(printstring)
+	minux.monitorprint(printstring)
+	return false
+end
+
+if _G.tablaturecfg[1] == nil or _G.tablaturecfg[1] == false then
+	print("loading settings file")
+	minux.debug("RN:loading settings file","tablature")
+	return false
+end
+
+if req == "RN-GET" then
+-- reply with ack
+	minux.debug("RN-GET:reply","tablature")
+	local reply = netlib.sendstring(clientid,"RN-ACK")
+	if reply ~= true then
+		minux.monitorprint("RN-GET-NOSYNC")
+		minux.debug("RN:E:REQ:802:noSync","tablature")
+		return false
+	end
+-- receive the data
+	local data = netlib.getstring(clientid,3)
+	if data == false or data == nil then
+		minux.monitorprint("data sync error")
+		minux.debug("RN:E:808:DATA:noSync","tablature")
+		return false
+	end
+-- if file doesn't exist
+	if fs.exists(_G.tablaturecfg[1].."/"..data) ~= true then
+		minux.debug("RN-GET:E:804:nofile"..data,"tablature")
+		minux.monitorprint("RN-GET-804:"..data)
+		reply = netlib.sendstring(clientid,"RN-GET-804")
+		return true
+-- if it's a directory
+	elseif fs.isDir(_G.tablaturecfg[1].."/"..data) then
+		minux.debug("RN-GET-isDir:"..data,"tablature")
+		local filedata = fs.list(_G.tablaturecfg[1].."/"..data)
+		-- add a "/" to the end of directories, for sonata's sake.
+		local dircount = 1
+		while filedata[dircount] ~= nil do
+			minux.debug("dir:check:"..filedata[dircount],"tablature")
+			local teststring = filedata[dircount]
+			if fs.isDir(_G.tablaturecfg[1].."/"..data.."/"..filedata[dircount]) then
+				minux.debug("dir-list:dir found, adding /","tablature")
+				local tempdata = filedata[dircount].."/"
+				filedata[dircount] = tempdata
+			end
+			dircount = dircount + 1
+		end
+		-- checking for empty dir
+		if filedata[1] == nil or filedata[1] == "" then
+			filedata[1] = "EMPTY DIRECTORY"
+		end
+		-- convert to string, not table. compatibility reasons
+		minux.writetable("/temp/tablature/list.tmp",filedata)
+		local datafile = fs.open("/temp/tablature/list.tmp","r")
+		filedata = datafile.readAll()
+		datafile.close()
+		reply = netlib.sendstring(clientid,filedata)
+		if reply ~= true then
+			minux.monitorprint("RN-GET-NOSYNC:"..data..":"..clientid)
+			minux.debug("RN:E:END:809:noSync"..data..":"..clientid,"tablature")
+			return false
+		else
+			minux.debug("RN-GET:ID:"..clientid.." F:"..data,"tablature")
+			minux.monitorprint("RN-GET:ID:"..clientid.." F:"..data)
+			return true
+		end
+-- if it does exist
+	else
+		minux.debug("RN-GET-isFile:"..data,"tablature")
+		local tempfile = fs.open(_G.tablaturecfg[1].."/"..data,"r")
+		local filedata = tempfile.readAll()
+		tempfile.close()
+		reply = netlib.sendstring(clientid,filedata)
+		if reply ~= true then
+			minux.monitorprint("RN-GET-NOSYNC:"..data..":"..clientid)
+			minux.debug("RN:E:END:809:noSync"..data..":"..clientid,"tablature")
+			return false
+		else
+			minux.debug("RN-GET:ID:"..clientid.." F:"..data,"tablature")
+			minux.monitorprint("RN-GET:ID:"..clientid.." F:"..data)
+			return true
+		end
+	end
+end
+return false

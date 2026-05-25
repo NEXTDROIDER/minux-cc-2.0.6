@@ -1,0 +1,145 @@
+-- config menu, part of main menu but can be called seperate
+
+-- this requires auth-client, wich we can detect with the presence of "auth-client.sh"
+local authmenuactive = true
+if fs.exists("/bin/auth-client.sh") ~= true then 
+	local title = "This function requires 'auth-client'"
+	local choices = {"install auth-client and reboot", "do not install and return"}
+	local actions = {}
+
+	actions[1] = function()
+	apt.install("auth-client")
+	minux.restart()
+	end
+	
+	actions[2] = function()
+	authmenuactive = false
+	end
+	
+	menu.menuOptions(title, choices, actions)
+end
+-- if we don't have a network server, abort!
+if _G.authserver == nil then
+	term.clear()
+	term.setCursorPos(1,1)
+	print("no auth server known, set up auth/dhcp first")
+	print("see the wiki for more information")
+	print("https://minux.cc/wiki/")
+	read()
+	return false
+end
+
+while authmenuactive == true do
+	local title = "Minux AUTH configuration"
+	local choices = {}
+	if pocket or turtle then
+		choices = {"return/exit","add a new user", "remove a user", "add a new group - auth", "remove a group - auth", "add user to group - auth", "rem user from group-auth" , "register dns/dhcp", "unregister dns/dhcp", "claim ownership", "unclaim ownership"}
+	else
+		choices = {"return/exit","add a new user", "remove a user", "add a new group - auth only", "remove a group - auth only", "add user to group - auth only", "remove user from group - auth only" , "register this system on dns/dhcp - auth only", "unregister system on dns/dhcp - auth only", "claim system ownership - auth only", "unclaim system ownership - auth only"}
+	end
+	local actions = {}
+
+	actions[1] = function()
+	minux.debug("authmenu:return/exit" , "minux")
+	authmenuactive = false
+	end
+	
+	actions[2] = function()
+	minux.debug("authmenu:adduser" , "minux")
+	print("")
+	write("what username to add:")
+	local newuser = read()
+	write("what password:")
+	local newpass = read("*")
+	auth.useradd(newuser, newpass)
+	print("hit enter to continue")
+	read()
+	end
+	
+	actions[3] = function()
+	minux.debug("authmenu:deluser" , "minux")
+	print("")
+	write("what username to remove:")
+	local newuser = read()
+	auth.userdel(newuser)
+	print("hit enter to continue")
+	read()
+	end
+	
+	actions[4] = function()
+	minux.debug("authmenu:addgroup" , "minux")
+	write("what group to add:")
+	local newgroup = read()
+	auth.groupadd(newgroup)
+	print("hit enter to continue")
+	read()
+	end
+	
+	actions[5] = function()
+	minux.debug("authmenu:delgroup" , "minux")
+	write("what group to remove:")
+	local newgroup = read()
+	auth.groupdel(newgroup)
+	print("hit enter to continue")
+	read()
+	end	
+	
+	actions[6] = function()
+	minux.debug("authmenu:joingroup" , "minux")
+	write("what username:")
+	local newuser = read()
+	write("what group name:")
+	local newgroup = read()
+	auth.joingroup(newgroup, newuser)
+	print("hit enter to continue")
+	read()
+	end
+	
+	actions[7] = function()
+	minux.debug("authmenu:leavegroup" , "minux")
+	write("what username:")
+	local newuser = read()
+	write("what group name:")
+	local newgroup = read()
+	auth.leavegroup(newgroup, newuser)
+	print("hit enter to continue")
+	read()
+	end
+
+	actions[8] = function()	
+	minux.debug("authmenu:dnsregister" , "minux")
+	write("system name:")
+	local dnsreg = read()
+	dhcp.register(dnsreg)
+	print("hit enter to continue")
+	read()
+	end
+	
+	actions[9] = function()	
+	minux.debug("authmenu:dnsunregister" , "minux")
+	write("system name:")
+	local dnsreg = read()
+	dhcp.unregister(dnsreg)
+	print("hit enter to continue")
+	read()
+	end
+
+	actions[10] = function()
+	minux.debug("authmenu:setowner" , "minux")
+	write("what system name:")
+	local newuser = read()
+	write("what group name(optional):")
+	local newgroup = read()
+	auth.setowner(newuser, newgroup)
+	print("hit enter to continue")
+	read()
+	end
+	
+	actions[11] = function()
+	minux.debug("authmenu:clearown" , "minux")
+	auth.delowner()
+	print("hit enter to continue")
+	read()
+	end
+	menu.menuOptions(title, choices, actions)
+end

@@ -1,0 +1,26 @@
+-- menu to chose startup system
+local startupmenu = true
+while startupmenu == true do
+startupsetting = minux.getconfig("ui")
+if startupsetting == "prompt" then startupsetting = "bash" end
+local title = "Minux UI setting:"..startupsetting
+local choices = {"return/exit", "default UI - menu", "bash shell - avanced", "workspace - Alt Prompt"}
+local actions = {}
+
+actions[1] = function()
+	startupmenu = false
+  end
+actions[2] = function()
+  minux.debug("uicfg:Menu" , "minux")
+	minux.setconfig("ui","menu")
+  end
+actions[3] = function()
+  minux.debug("uicfg:prompt" , "minux")
+  minux.setconfig("ui","prompt")
+  end
+actions[4] = function()
+  minux.debug("uicfg:workspace" , "minux")
+  minux.setconfig("ui","workspace")
+  end
+menu.menuOptions(title, choices, actions)
+end

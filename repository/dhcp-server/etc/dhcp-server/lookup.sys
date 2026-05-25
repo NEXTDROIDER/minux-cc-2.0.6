@@ -1,0 +1,49 @@
+-- dhcp lookup server side script
+args = {...}
+local clientid = tonumber(args[1])
+minux.debug("lookup:starting","dhcp")
+
+--reply and await data, bounce back for verify
+minux.debug("dhcp-serv:listening for data","dhcp")
+rednet.send(clientid, "DHCP-ACK")
+tempid, query = rednet.receive(1)
+rednet.send(clientid, query)
+tempid, data = rednet.receive(1)
+minux.debug("dhcp-serv:verify","dhcp")
+if data ~= "SYNC-TRUE" then 
+	minux.debug("dhcp-serv:E:502:sync-fail","dhcp")
+	printstring = "DHCP:LOOKUP:SYNCFAIL:ID-"..clientid
+	print(printstring)
+	shell.run("/etc/minux-main/sys/monitorprint.sys "..printstring)
+	return 0 
+end
+minux.debug("dhcp-serv:lookup:"..query.." ID-"..tempid,"dhcp")
+
+-- reset values to prevent corrupt data
+lookupname = "unknown"
+lookupid = "unknown"
+lookupowner = "unknown"
+
+-- looking for file and if exists setting correct values.
+minux.debug("dhcp-serv:lookup file","dhcp")
+if fs.exists("/usr/dhcp-server/systems/"..query..".id") == true then
+	minux.debug("dhcp-serv:found, reading data","dhcp")
+	lookupfile = fs.open("/usr/dhcp-server/systems/"..query..".id" , "r")
+	line = "start"
+	while line ~= nil do
+		line = lookupfile.readLine()
+		if line == "OWN" then lookupowner = lookupfile.readLine()
+		elseif line == "NAME" then lookupname = lookupfile.readLine()
+		elseif line == "ID" then lookupid = lookupfile.readLine()
+		end
+	end
+end
+
+-- sending data
+minux.debug("dhcp-serv:sending result","dhcp")
+printstring = "DHCP:LOOKUP:ID-"..clientid.." Q-"..query
+print(printstring)
+shell.run("/etc/minux-main/sys/monitorprint.sys "..printstring)
+rednet.send(clientid, lookupname)
+rednet.send(clientid, lookupid)
+rednet.send(clientid, lookupowner)

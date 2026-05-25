@@ -1,0 +1,65 @@
+-- handles actual rednet requests
+args = {...}
+local clientid = tonumber(args[1])
+minux.debug("request:starting","door")
+
+-- first we need to reply and receive the data
+minux.debug("request:receiving data","door")
+netlib.sendstring(clientid , "DOOR-ACK")
+local data = {}
+data = netlib.gettable(clientid, 3)
+minux.debug("request:verify","door")
+if data == false then
+	print("sync failed with ID:"..clientid)
+	minux.debug("request:E:602:no-sync","door")
+	return false
+end
+local duration = data[1]
+local templogin = data[2]
+local temppass = data[3]
+minux.debug("request:U-"..templogin,"door")
+
+-- now we can check the user data on the AUTH
+minux.debug("request:login","door")
+print("attempting to log in as:"..templogin)
+_G.validlogin = false
+local tvalidlogin = minux.login(templogin, temppass)
+if _G.validlogin ~= true then
+	minux.debug("request:E:600:denied","door")
+	print("login denied:U-"..templogin.." ID-"..clientid)
+	netlib.sendstring(clientid , "DOOR-DENIED")
+	return false
+end
+
+-- we open the door if access is granted
+minux.debug("request:accept","door")
+netlib.sendstring(clientid , "DOOR-ACCEPT")
+print("Opening for "..duration.." seconds")
+-- read config
+local temp = minux.findline("/usr/door/settings.cfg","toggle=")
+local toggle = minux.printline("/usr/door/settings.cfg",temp)
+temp = minux.findline("/usr/door/settings.cfg","side=")
+local wireside = minux.printline("/usr/door/settings.cfg",temp)
+-- change data is toggle = off 
+if toggle ~= "toggle=enabled" then
+	if duration == 0 or duration == "0" then
+	duration = 10
+	end
+end
+if wireside == "side=left" then wireside = "left"
+elseif wireside == "side=right" then wireside = "right"
+elseif wireside == "side=top" then wireside = "top"
+elseif wireside == "side=bottom" then wireside = "bottom"
+elseif wireside == "side=front" then wireside = "front"
+elseif wireside == "side=backe" then wireside = "back"
+else print("wire config broken!") end
+rs.setOutput(wireside , true)
+if duration == 0 or duration == "0" and _G.flipped ~= true then
+	_G.flipped = true
+	return true
+else 
+	duration = tonumber(duration)
+	sleep(duration)
+end
+rs.setOutput(wireside , false)
+_G.flipped = false

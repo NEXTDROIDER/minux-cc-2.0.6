@@ -1,0 +1,9 @@
+AIF=true
+https://minux.cc/apt/2.0/soft/
+version=2.1
+author=Terreng
+php=true
+[filelist]
+/bin/music.sh
+/gbin/musicstreamer.exe
+/etc/apt/alias/musicstream.al

@@ -1,0 +1,118 @@
+-- dhcp unregister server side
+args = {...}
+local clientid = tonumber(args[1])
+minux.debug("dhcp-ureg:starting","dhcp")
+
+-- catch invalid input
+if clientid == nil or clientid == "" then 
+	minux.debug("dhcp-ureg:E:501:invalid input","dhcp")
+	printstring = "DHCP:UREG:NOID"
+	print(printstring)
+	shell.run("/etc/minux-main/sys/monitorprint.sys "..printstring)
+	return 0 
+end
+
+-- send confirmation, receive data and bounce back. await verify.
+minux.debug("dhcp-ureg:receiving data","dhcp")
+rednet.send(clientid , "DHCP-REG-ACK")
+tempid, templogin = rednet.receive(1)
+tempid, temppass = rednet.receive(1)
+tempid, tempname = rednet.receive(1)
+rednet.send(clientid, templogin)
+rednet.send(clientid, temppass)
+rednet.send(clientid, tempname)
+tempid, data = rednet.receive(1)
+minux.debug("dhcp-ureg:verify","dhcp")
+if data ~= "SYNC-TRUE" then 
+	minux.debug("dhcp-ureg:E:502:sync-fail","dhcp")
+	printstring = "DHCP:UREG:SYNCFAIL:ID-"..clientid 
+	print(printstring)
+	shell.run("/etc/minux-main/sys/monitorprint.sys "..printstring)
+	return 0 
+end
+minux.debug("dhcp-ureg:U-"..templogin.." T-"..tempname,"dhcp")
+
+-- check credentials, request login accept bounce and verify
+minux.debug("dhcp-ureg:login","dhcp")
+authserver = tonumber(_G.authserver)
+rednet.send(authserver, "AUTH-LOGIN")
+tempid, tempdata = rednet.receive(1)
+if tempdata ~= "AUTH-ACK" then
+	minux.debug("dhcp-ureg:E:507","dhcp")
+	printstring = "DHCP:UREG:AUTH:NOACK"
+	print(printstring)
+	shell.run("/etc/minux-main/sys/monitorprint.sys "..printstring)
+	rednet.send(clientid, "DHCP-FAIL")
+	return 0
+end
+rednet.send(authserver, templogin)
+rednet.send(authserver, temppass)
+tempid, tmplogin = rednet.receive(1)
+tempid, tmppass = rednet.receive(1)
+minux.debug("dhcp-ureg:verify","dhcp")
+if tmppass ~= temppass or tmplogin ~= templogin then
+	printstring = "DHCP:UREG:AUTH:SYNC:FAIL"
+	print(printstring)
+	shell.run("/etc/minux-main/sys/monitorprint.sys "..printstring)
+	rednet.send(authserver, "SYNC-FAIL")
+	minux.debug("dhcp-ureg:E:508:auth-sync-fail","dhcp")
+	return 0
+end
+rednet.send(authserver, "AUTH-SYNC")
+
+-- await auth reply
+tempid, data = rednet.receive(1)
+if data == "AUTH-ACCEPT" or data == "AUTH-ADMIN" then
+	minux.debug("dhcp-ureg:login accept","dhcp")
+	if fs.exists("/usr/dhcp-server/systems/"..tempname..".id")  == false then
+		printstring = "DHCP:UREG:NOEXIST:U-"..templogin.." S-"..tempname
+		print(printstring)
+		shell.run("/etc/minux-main/sys/monitorprint.sys "..printstring)
+		rednet.send(clientid , "REG-NOEXIST")
+		minux.debug("dhcp-ureg:noexist","dhcp")
+	else
+-- lookup and find both files
+		if fs.exists("/usr/dhcp-server/systems/"..tempname..".id") == true then
+			minux.debug("dhcp-ureg:accept, removing","dhcp")
+			lookupfile = fs.open("/usr/dhcp-server/systems/"..tempname..".id" , "r")
+			line = "start"
+			while line ~= nil do
+				line = lookupfile.readLine()
+				if line == "OWN" then lookupowner = lookupfile.readLine()
+				elseif line == "NAME" then lookupname = lookupfile.readLine()
+				elseif line == "ID" then lookupid = lookupfile.readLine()
+				end
+			end
+		end	
+		if templogin == lookupowner or data == "AUTH-ADMIN" then
+			minux.debug("dhcp-ureg:remove accept","dhcp")
+			printstring = "DHCP:UREG:ACCEPT:U-"..templogin.." S-"..tempname
+			print(printstring)
+			shell.run("/etc/minux-main/sys/monitorprint.sys "..printstring)
+			rednet.send(clientid , "REG-ACCEPT")
+			fs.delete("/usr/dhcp-server/systems/"..lookupname..".id" , "r")
+			fs.delete("/usr/dhcp-server/systems/"..lookupid..".id" , "r")
+		else
+			minux.debug("dhcp-ureg:E:500:access denied","dhcp")
+			printstring = "DHCP:UREG:DENIED:U-"..templogin.." S-"..tempname
+			print(printstring)
+			shell.run("/etc/minux-main/sys/monitorprint.sys "..printstring)
+			rednet.send(clientid , "REG-DENIED")
+		end
+	end
+elseif data == "AUTH-DENIED" then 
+	minux.debug("dhcp-ureg:E:503:denied","dhcp")
+	minux.debug("dhcp-ureg:E:503:Denied U-"..templogin,"warning")
+	printstring = "!ALERT!"
+	print(printstring)
+	shell.run("/etc/minux-main/sys/monitorprint.sys "..printstring)
+	printstring = "DHCP:UREG:AUTH:DENIED:U-"..templogin.." ID-"..clientid
+	print(printstring)
+	shell.run("/etc/minux-main/sys/monitorprint.sys "..printstring)
+	rednet.send(clientid , "DHCP-ALERT")
+else
+	minux.debug("dhcp-ureg:E:509:noreply","dhcp")
+	printstring = "DHCP:UREG:AUTH:NOREPLY:U-"..templogin.." ID:"..clientid
+	print(printstring)
+	shell.run("/etc/minux-main/sys/monitorprint.sys "..printstring)
+end

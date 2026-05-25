@@ -1,0 +1,42 @@
+-- netfolder listen application
+
+	tempfile = fs.open("/temp/minux/boot/failcount3.tmp" ,"w")
+	tempfile.write("0")
+	tempfile.close()
+
+-- find the server root file and read it
+if fs.exists("/usr/netfolder-server/root.db") == false then
+	print("Using default server root.")
+	_G.netfolderroot = "/var/netfolder/"
+else
+	tempfile = fs.open("/usr/netfolder-server/root.db" , "r")
+	line = tempfile.readLine()
+	tempfile.close()
+	if fs.exists(line) == false then
+		print("Server root path not found, configuration bad")
+		print("resetting to default")
+		_G.netfolderroot = "/var/netfolder/"
+	else
+		_G.netfolderroot = line
+	end
+end
+
+-- this listen for a request and responds correctly
+local netfolderserver = true
+while netfolderserver == true do 
+	tempid, tempdata = rednet.receive(5)
+	if tempdata == "NETFOL-TEST" then
+		rednet.send(tempid , "NETFOL-ACK")
+		print("NETFOL:TEST:ID-"..tempid)
+	elseif tempdata == "NETFOL-GET" then
+		shell.run("/etc/netfolder-server/getfile.sys "..tempid)
+	elseif tempdata == "NETFOL-PUT" then
+		shell.run("/etc/netfolder-server/putfile.sys "..tempid)
+	elseif tempdata == "FILE-LS" then
+		shell.run("/etc/netfolder-server/getfolder.sys "..tempid)
+	elseif tempdata == "NETFOL-DEL" then
+		shell.run("/etc/netfolder-server/delete.sys "..tempid)
+	elseif tempdata == "NETFOL-LS" then
+		shell.run("/etc/netfolder-server/ls.sys "..tempid)
+	end
+end

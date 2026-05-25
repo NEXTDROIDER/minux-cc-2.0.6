@@ -1,0 +1,23 @@
+apt repository - primary
+program name:"netfolder" - alias "nfsd"
+secondary program name: "netfolder-server"
+installation: "apt -i netfolder" & "apt -i netfolder-server"
+
+netfolder-server:
+hosts a fileserver that can send and receive files, the fileserver admin 
+sets the server's root and the user that tries to send/put a file gets a 
+directory inside that. netfolder currently only allows send and put 
+commands, it's the first version. user access is handled in the same way 
+that all AUTH access is handled. netfolder is still in development
+
+syntax : "nfsd command var1"
+
+commands:
+status
+	gets the current server status
+start
+	starts the server
+stop
+	stops the server
+rootfolder path
+	sets "path" as the server's root folder.

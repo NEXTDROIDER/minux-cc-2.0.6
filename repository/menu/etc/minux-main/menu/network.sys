@@ -1,0 +1,26 @@
+-- menu to chose update settings
+local networkmenu = true
+while networkmenu == true do
+local updatesetting = minux.getconfig("network")
+local title = "Minux dhcp/network setting:"..updatesetting
+local choices = {}
+if pocket or turtle then
+  choices = {"return/exit", "disable dhcp search", "enable dhcp"}
+else
+  choices = {"return/exit", "disable dhcp search on boot", "enable dhcp search on boot"}
+end
+local actions = {}
+
+actions[1] = function()
+	networkmenu = false
+  end
+actions[2] = function()
+  minux.debug("dhcp:disabled" , "minux")
+  minux.setconfig("network", "disabled")
+  end
+actions[3] = function()
+  minux.debug("dhcpenabled" , "minux")
+  minux.setconfig("network" , "enabled")
+  end
+menu.menuOptions(title, choices, actions)
+end

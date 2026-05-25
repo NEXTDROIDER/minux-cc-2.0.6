@@ -1,0 +1,34 @@
+netsync v1.0.2 short manual.
+
+netsync is a program used to automatically synchronize
+files and folders depending on your user's settings.
+
+it takes it's list of files to sync and processes them,
+this file is created by each user seperate and allows them
+to take their favorite settings and files along with them.
+
+"netsync set option1 option2":
+autosync option - can be set to either disabled or enabled,
+    automatically runs netsync.load() on user login.
+
+autodelete option - can be set to either disabled or enabled
+    deletes files on the netfolder server before uploading.
+
+nfserver servername - sets the nfserver, uses dhcp registered name.
+
+"netsync reset" -
+resets the configuration to default, doesn't need arguments.
+
+"netsync add option" -
+template name - adds a pre-set template to the synclist
+file/foldername - adds a file or folder to the sync list
+
+"netsync del option" -
+template name - deletes a pre-set template to the synclist
+file/foldername - deletes a file or folder to the sync list
+
+"netsync save" -
+saves the current profile to the netfolder server
+
+"netsync load" -
+loads the current profile to the netfolder server

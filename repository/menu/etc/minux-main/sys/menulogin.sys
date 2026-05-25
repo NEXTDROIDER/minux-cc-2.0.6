@@ -1,0 +1,127 @@
+local function drawStatus(x, y)
+local statusTable = {}
+if pocket then
+	local attached
+	if modemside then
+	equipped = modemside
+	elseif speakerside then
+	equipped = modemside
+	else equipped = "none"
+	end
+	statusTable = {
+	["back"] = equipped,
+	["updates"] = minux.getconfig("update"),
+	["dhcp"] = server,
+	["auth"] = minux.getconfig("login"),
+	}
+else
+statusTable = {
+	["modem"] = modemside,
+	["speaker"] = speakerside,
+	["monitor"] = monitorside,
+	["drive"] = diskside ,
+	["printer"] = printerside,
+	["updates"] = minux.getconfig("update"), 
+	["dhcp"] = server,
+	["auth"] = minux.getconfig("login"),
+}
+end
+local statusFG, statusBG = colors.black, colors.white
+local statusWd = 12  
+ 
+local statStr = "Status"
+if not pocket then
+	term.setCursorPos(x+statusWd+4 +statusWd/1.5, y+1)
+	for match in string.gmatch(statStr, ".") do
+	write(match)
+	local mX, mY = term.getCursorPos()
+	term.setCursorPos(mX-1, mY+2) 
+	end
+else
+
+end
+
+for key, value in pairs(statusTable) do
+	local lowval = string.lower(value)
+	menu.drawLabel(x, y, key, statusWd, statusFG, statusBG)
+	menu.drawLabel(x+statusWd+2, y, lowval, statusWd/1.5 , statusFG, statusBG)
+	y = y + 2
+	local sysCol = colors.green
+	if string.find(lowval, "none") or (string.find(lowval, "disabled") and key ~= "updates") then sysCol = colors.red end
+	paintutils.drawPixel(x+statusWd, y-2, sysCol)
+end 
+end 
+
+local function drawBanner(x, y)
+local mnxBanner = paintutils.loadImage("/etc/minux-main/welcome/mnx.nfp")
+paintutils.drawImage(mnxBanner, x, y)
+term.setCursorPos(x+5, y+6)
+write("V: "..version)
+end
+
+local function drawLogin(x, y)
+menu.drawLabel(loginx, loginy+1, " ", loginw, colors.gray, colors.gray)
+textFields = {
+menu.formLabel(x,y,9,colors.black,colors.white,"Username",colors.lightGray),
+menu.safeFormLabel(x+12,y,9,colors.black,colors.white,"Password",colors.lightGray),
+}
+menu.buildForm(
+textFields,
+function(formTable)
+	menu.clickButton(loginx, loginy, loginw, colors.black, colors.white, "Login")
+	menu.drawLabel(loginx, loginy+1, " ", loginw, colors.gray, colors.gray)
+	term.clear()
+	term.setCursorPos(1,1)
+	local username = formTable[1].input
+	local password = formTable[2].input
+	minux.login(username, password)
+end,
+loginx, loginy, loginw, colors.black, colors.white, "Login"
+)
+end 
+
+function drawTuccs(x,y)
+	paintutils.drawImage(paintutils.loadImage("/etc/minux-main/sys/tcs.nfp"), x, y)
+end
+
+function drawOptionsMenu(x, y)
+local ogTerm = term.current()
+local termX, termY = term.getSize()
+local menuWindow = window.create(ogTerm, x, y, termX, termY)
+term.redirect(menuWindow)
+local tChoices = {
+"Login",
+"Shutdown",
+}
+local tActions = {
+function() end,
+function() minux.halt() end,
+}
+menu.menuOptions(" ", tChoices, tActions)
+term.clear()
+term.redirect(ogTerm)
+end
+
+if not pocket then
+loginx,loginy, loginw = 9, 17, 6
+else
+loginx,loginy, loginw = 9, 18, 6
+end
+
+local ogTable = menu.saveOGs()
+term.setCursorPos(1,1)
+term.clear()
+if not pocket then
+drawBanner(-1,1)
+drawStatus(26,3)
+drawTuccs(13,7)
+menu.restoreOGs(ogTable)
+drawLogin(2, 15)
+else
+drawBanner(-1,0)
+drawStatus(2,8)
+drawOptionsMenu(7,16)
+menu.restoreOGs(ogTable)
+drawLogin(2,16)
+end
+

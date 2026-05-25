@@ -1,0 +1,15 @@
+AIF=true
+https://minux.cc/apt/2.0/soft/
+version=1.0
+author=Missooni
+php=true
+[depstart]
+auth-client
+rnwtp
+devlib
+[depstop]
+[filelist]
+/bin/sonata.sh
+/gbin/sonata
+/etc/apt/alias/sonata.al
+/etc/man/sonata.man

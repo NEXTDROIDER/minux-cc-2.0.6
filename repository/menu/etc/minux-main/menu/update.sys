@@ -1,0 +1,30 @@
+-- menu to chose update settings
+local updatemenu = true
+while updatemenu == true do
+local updatesetting = minux.getconfig("update")
+local title = "Minux update setting:"..updatesetting
+local choices = {}
+if pocket or turtle then
+  choices = {"return/exit", "disabled - no autoupdate", "enabled - update new", "forced - always"}
+else
+  choices = {"return/exit", "disabled - no autoupdate", "enabled - update new versions", "forced - always reinstall full"}
+end
+local actions = {}
+
+actions[1] = function()
+	updatemenu = false
+  end
+actions[2] = function()
+  minux.debug("updcfg:disabled" , "minux")
+  minux.setconfig("update", "disabled")
+  end
+actions[3] = function()
+  minux.debug("updcfg:enabled" , "minux")
+  minux.setconfig("update" , "enabled")
+  end
+actions[4] = function()
+  minux.debug("updcfg:always" , "minux")
+  minux.setconfig("update", "always")
+  end
+menu.menuOptions(title, choices, actions)
+end

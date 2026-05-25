@@ -1,0 +1,65 @@
+-- ls netfolder server side
+
+args = {...}
+clientid = tonumber(args[1])
+
+-- catch bad input
+if clientid == nil or clientid == "" then print("ls:Invalid input") return 0 end
+-- be polite and respond so we can connect
+local creply = netlib.sendstring(clientid,"NF-LS-ACK")
+-- receive data table
+local tdata = netlib.gettable(clientid, 3)
+if tdata == nil or tdata == false then
+	minux.debug("LS:E702:Connect-fail","netfolder")
+	return 702
+end
+temppath = tdata[1]
+templogin = tdata[2]
+temppass = tdata[3]
+-- verify user data with AUTH
+local ldata = minux.checkuser(templogin,temppass)
+if ldata[4] ~= true then
+	minux.monitorprint("LS:703:U-"..templogin.." ID-"..clientid)
+	minux.debug("LS:703:U-"..templogin.." ID-"..clientid,"netfolder")
+	rednet.send(clientid , "NF:LS:703")
+	return 703
+end
+-- we check if the file exists
+if fs.exists(_G.netfolderroot.."/"..templogin.."/"..temppath) == false then
+	minux.monitorprint("LS:E:704:nofile")
+	minux.debug("LS:E:704:nofile","netfolder")
+	netlib.sendstring(clientid , "NF:LS:704")
+	return 704
+else
+	if fs.isDir(_G.netfolderroot.."/"..templogin.."/"..temppath) == false then
+		minux.monitorprint("LS:E:706:nodir")
+		minux.debug("LS:E:706:nodir")
+		rednet.send(clientid , "NF-LS-706")
+		return 0
+	end
+	netlib.sendstring(clientid, "NF:LS:ACC")
+	minux.monitorprint("LS:Sending File list")
+	minux.debug("LS:Sending File list","netfolder")
+end
+-- we list the folder
+local nfls = minux.lsr(_G.netfolderroot.."/"..templogin.."/"..temppath.."/")
+-- manipulate the data to remove folderroot and loginname again.
+local totalstringcount = string.len(_G.netfolderroot) + string.len(templogin)
+local totalstringcount = totalstringcount +3
+local stringcount = 1
+local newlist = fs.open("/temp/netfolder/ls.tmp" ,"w")
+local filelist = fs.open("/temp/ls/files.ls" , "r")
+local line = filelist.readLine()
+while line ~= nil do
+-- where does string end?
+	stringcount = string.len(line)
+-- now we remove
+	newline = line:sub(totalstringcount , stringcount)
+	newlist.writeLine(newline)
+	line = filelist.readLine()
+end
+newlist.close()
+filelist.close()
+-- read and send
+local data = minux.readtable("/temp/netfolder/ls.tmp")
+netlib.sendtable(clientid, data)

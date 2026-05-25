@@ -1,0 +1,9 @@
+AIF=true
+https://minux.cc/apt/2.0/soft/
+version=1.0
+author=Nitrogen_Fingers
+php=false
+[filelist]
+/bin/solitaire.sh
+/gbin/solitaire.exe
+/etc/apt/alias/solitaire.al

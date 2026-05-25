@@ -1,0 +1,52 @@
+Synce_daudioplayer
+developed by 'GroupXyz'
+https://forums.computercraft.cc/index.php?topic=687.msg2120
+
+You will require a
+computer and a speaker
+placed next to it,
+as well as a modem if
+you want to network,
+
+Now run syncedaudio
+and it will generate a
+folder called "sounds/"
+where you place your
+audiofiles.
+
+After you added audio
+(see below), audioplayer
+will list them and give
+you the option to play
+them.
+
+The script needs to run on every computer.
+to make it listen,
+run the program but do
+not select a song, make
+sure all computers have
+the same songs with the
+same filenames.
+
+Important:
+To add new audiofiles,
+you have to convert
+them into DFPWM format
+which these websites
+do for example
+(please note, these
+websites are not mine
+and i am not responsible
+for changes with them):
+
+https://music.madefor.cc/
+https://remote.craftos-pc.cc/music/
+
+Now copy the output link
+and do:
+wget (link) (filename)
+You can just move it
+into the sounds/ folder
+and it will be detected
+by the script when you
+start it.

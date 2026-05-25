@@ -1,0 +1,19 @@
+dhcp-server, controller app for the dhcp server
+executable location: '/bin/dhcp-server.sh'  alias: 'dhcp-server'
+dhcp-server is part of the 'dhcp-server' app
+
+this script is used to control the dhcp server, 
+setting the auth server or turning it on or off.
+
+syntax : 'dhcp-server status'
+syntax2: 'dhcp-server auth ID'
+
+- status
+	displays the server status
+- start
+	starts the server
+- stop
+	stops the server
+- auth ID
+	sets the field ID as the auth server and
+	notifies the clients when AUTH-REQ is done

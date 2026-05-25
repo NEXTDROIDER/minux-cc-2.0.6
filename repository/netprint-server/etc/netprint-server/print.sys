@@ -1,0 +1,42 @@
+-- this files handles the print request for netprint
+args = { ... }
+local tempid = tonumber(args[1])
+-- we send confirmation, client will reply with it's login and print data
+minux.debug("print-id:"..tempid,"netprint")
+minux.monitorprint("print-id:"..tempid)
+netlib.sendstring(tempid, "netprint-ack")
+local clientdata = netlib.gettable(tempid,3)
+local clientfile = netlib.gettable(tempid,3)
+local printuser = clientdata[1]
+local printpsw = clientdata[2]
+local printname = clientdata[3]
+if clientdata == false or clientfile == false or clientdata == nil or clientfile == nil then
+    minux.debug("netlib transmission error","netprint")
+    return false
+end
+-- we verify the login data, make sure this person has authoritah
+minux.debug("attempting to log in","netprint")
+if minux.login(printuser,printpsw) ~= true then
+    minux.monitorprint("Access denied!")
+    minux.debug("Access denied:"..printuser,"netprint")
+    netlib.sendstring(tempid, "1003")
+    return false
+else
+    minux.debug("Access granted:"..printuser,"netprint")
+end
+-- we turn the print job into a file to feed the api
+minux.debug("prepairing print","netprint")
+local tempfile = "/temp/netprint/printcache.tmp"
+minux.writetable(tempfile,clientfile)
+-- if we're still around, we print!
+minux.debug("print!","netprint")
+local fileprint = dev.printfile(tempfile,printname)
+if fileprint == true then
+    minux.debug("print complete","netprint")
+    netlib.sendstring(tempid,"1005")
+    return true
+else
+    minux.debug("print failed","netprint")
+    netlib.sendstring(tempid,"1002")
+    return false
+end

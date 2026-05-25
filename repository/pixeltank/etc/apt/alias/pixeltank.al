@@ -1,0 +1,1 @@
+if fs.exists("/bin/pixeltank.sh") then shell.setAlias("pixeltank" , "/bin/pixeltank.sh") end

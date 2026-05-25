@@ -1,0 +1,11 @@
+AIF=true
+https://minux.cc/apt/2.0/soft/
+version=1.1
+author=GroupXyz
+php=true
+[filelist]
+/bin/syncedaudio.sh
+/gbin/syncedaudio.exe
+/etc/apt/cleanup/syncedaudio.db
+/etc/apt/alias/syncedaudio.al
+/etc/man/syncedaudio.man

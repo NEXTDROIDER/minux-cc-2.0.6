@@ -1,0 +1,42 @@
+the printfile binary is
+part of the "devlib"
+program and used to
+print a file,
+
+it takes your file, runs
+it trough "dev.prepfile"
+to cut every line longer
+then 25 characters to
+the next line, ensuring
+your page is not to wide
+
+it then pushes this file
+to "dev.printfile" wich
+splits the file into
+pages and presents it to
+the printer for print.
+while it does print
+every single character
+in the file, the
+formatting can get very
+weird, it is best to
+print suitable files.
+
+the title argument
+tells the program how
+to name the prints.
+
+
+usage:
+printfile filename title
+
+output:
+splits the file into
+pages and prints these
+pages on an available
+printer.
+
+
+eg:
+printfile /etc/man/apt.man
+prints the apt manual

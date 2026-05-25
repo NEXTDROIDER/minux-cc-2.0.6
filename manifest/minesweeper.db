@@ -1,0 +1,9 @@
+AIF=true
+https://minux.cc/apt/2.0/soft/
+version=1.0
+author=Unknown
+php=true
+[filelist]
+/bin/minesweeper.sh
+/gbin/minesweeper.exe
+/etc/apt/alias/minesweeper.al

@@ -1,0 +1,15 @@
+AIF=true
+https://minux.cc/apt/2.0/soft/
+version=1.0
+author=minux-team
+php=true
+[depstart]
+auth-client
+[depstop]
+[filelist]
+/etc/server.sys
+/etc/netprint-server/listen.sys
+/etc/netprint-server/print.sys
+/etc/apt/alias/netprint-server.al
+/etc/apt/boot/netprint-server.d
+/bin/netprint-server.sh

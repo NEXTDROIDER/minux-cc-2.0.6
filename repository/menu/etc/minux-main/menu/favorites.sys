@@ -1,0 +1,46 @@
+-- favorites menu, part of main menu but can be called seperate
+local listprogram = {}
+listprogram = fs.list("/ubin/")
+ogTerm = term.current()
+
+function buildMenu()
+	 title = "user favorites/shortcutes (/ubin)"
+	 choices = {}
+	choices[1] = "return/exit"
+	 actions = {}
+	actions[1] = function()
+		minux.debug("favmenu:return/exit" , "minux")
+		progmenuactive = false
+	end
+-- here we build the menu
+	local appcount = 1
+	local listcount = 2
+	while listprogram[appcount] ~= nil do
+		choices[listcount] = listprogram[appcount]
+		actions[listcount] = function(selected)
+		local baseTerm = term.redirect(term.native())
+		term.clear()
+		term.setCursorPos(1,1)
+		shell.run("/ubin/"..listprogram[selected-1])
+		term.clear()
+		term.setCursorPos(1,1)
+		local colortable = minux.getbashcolor()
+		local termX, termY = term.getSize()
+		term.setBackgroundColor(colortable[2])
+		term.setTextColor(colortable[3])
+		local title = "Minux V:".._G.version.." U-".._G.login
+		print(title..string.rep(" ", termX - #title))
+		print(string.rep(" ", termX))
+		term.redirect(baseTerm)
+		end
+		appcount = appcount + 1
+		listcount = listcount + 1
+
+	end
+end
+
+progmenuactive = true
+buildMenu()
+while progmenuactive == true do
+	menu.menuOptions(title, choices, actions)
+end

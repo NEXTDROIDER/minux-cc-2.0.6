@@ -1,0 +1,1 @@
+if fs.exists("/bin/cryptofolder.sh") then shell.setAlias("cryptofolder" , "/bin/cryptofolder.sh") end

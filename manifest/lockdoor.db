@@ -1,0 +1,10 @@
+AIF=true
+https://minux.cc/apt/2.0/soft/
+version=1.0
+author=minux-team
+php=true
+[filelist]
+/bin/lockdoor.sh
+/etc/lockdoor/config.sh
+/etc/apt/boot/lockdoor.d
+/etc/apt/alias/lockdoor.al

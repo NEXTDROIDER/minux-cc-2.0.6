@@ -1,0 +1,10 @@
+groupdel, easy command to delete a group
+executable location: '/bin/groupdel.sh'  alias: 'groupdel'
+groupdel is part of the 'auth-client' app
+
+used to quickly delete a group on AUTH
+
+syntax: 'groupdel groupname'
+
+only admins and makers can delete a group.
+users need to be logged in and networked to adjust a group.

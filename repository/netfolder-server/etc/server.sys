@@ -1,0 +1,2 @@
+-- netfolder server launcher
+shell.run("/etc/netfolder-server/listen.sys")

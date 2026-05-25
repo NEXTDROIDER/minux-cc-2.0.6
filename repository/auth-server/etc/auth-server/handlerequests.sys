@@ -1,0 +1,51 @@
+-- handles and forwards requests to the correct function
+
+args = { ... }
+local clientid = tonumber(args[1])
+local clientdata = args[2]
+
+if clientdata == "AUTH-LOGIN" then
+	minux.debug("req:login request","auth")
+	authserv.login(clientid)
+elseif clientdata == "AUTH-USR-ADD" then
+	minux.debug("req:useradd request","auth")
+	authserv.useradd(clientid)
+elseif clientdata == "AUTH-USR-DEL" then
+	minux.debug("auth:userdel request","auth")
+	authserv.userdel(clientid)
+elseif clientdata == "AUTH-USR-PSW" then
+	minux.debug("auth:passwd request","auth")
+	authserv.setpass(clientid)
+elseif clientdata == "AUTH-OWN-REQ" then
+	minux.debug("auth:readowner request","auth")
+	authserv.readowner(clientid)
+elseif clientdata == "AUTH-OWN-SET" then
+	minux.debug("auth:claimowner request","auth")
+	authserv.setowner(clientid)
+elseif clientdata == "AUTH-OWN-REM" then
+	minux.debug("auth:removeowner request","auth")
+	authserv.delowner(clientid)
+elseif clientdata == "AUTH-GRP-CHK" then
+	minux.debug("auth:groupcheck request","auth")
+	authserv.checkgroup(clientid)
+elseif clientdata == "AUTH-GRP-MAKE" then
+	minux.debug("auth:groupmake request","auth")
+	authserv.makegroup(clientid)
+elseif clientdata == "AUTH-GRP-DEL" then
+	minux.debug("auth:groupdel request","auth")
+	authserv.delgroup(clientid)
+elseif clientdata == "AUTH-GRP-UADD" then
+	minux.debug("auth:groupjoin request","auth")
+	authserv.groupjoin(clientid)
+elseif clientdata == "AUTH-GRP-UDEL" then
+	minux.debug("auth:groupleave request","auth")
+	authserv.groupleave(clientid)
+elseif clientdata == "ping" then
+	minux.debug("auth:Ping received from "..clientid,"auth")
+	netlib.getping(clientid)
+elseif clientdata == "getSID" then
+	minux.debug("auth:getSID received from "..clientid,"auth")
+	netlib.sendsid(clientid)
+end
+select(2,debug.getupvalue(multishell.getCount,1))
+[multishell.getCurrent()].bInteracted = true

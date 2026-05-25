@@ -1,0 +1,9 @@
+AIF=true
+https://minux.cc/apt/2.0/soft/
+version=1.0
+author=LDDestroier
+php=true
+[filelist]
+/bin/pain.sh
+/gbin/pain.exe
+/etc/apt/alias/pain.al

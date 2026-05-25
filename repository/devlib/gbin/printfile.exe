@@ -1,0 +1,12 @@
+term.clear()
+term.setCursorPos(1,1)
+print("Printfile - devlib")
+write("file path/:")
+local filename = read()
+write("file title:")
+local title = read()
+
+shell.run("/bin/printfile.sh "..filename.." "..title)
+print("")
+print("hit enter to proceed")
+read()

@@ -1,0 +1,33 @@
+apt repository - primary
+program name:"netfolder"
+secondary program name: "netfolder-server"
+installation: "apt -i netfolder" & "apt -i netfolder-server"
+
+netfolder:
+the client program that is used to interact with a netfolder server, it can send and receive files, the user logged in on this system is the one that is checked on the server's permissions in AUTH.
+see "man netfolder". netfolder is still in development, this is what the current beta can do:
+
+syntax : "netfolder command server var1 var2"
+
+commands: 
+getfile serverfile localfile (file only)
+		attempts to retrieve a file, serverpath is the location
+		on the server and localpath on the local computer.
+		this action overwrites the current file!
+putfile serverfile localfile (file only)
+		attempts to send a file, serverpath is the location
+		on the server and localpath on the local computer.
+		this action overwrites the current file!
+list serverpath (Folder only)
+		attempts to list a file/folder, if it is a folder it will
+		send the file list and open it in "edit".
+delete serverpath (folder AND file)
+		deletes a file/folder from the server. do NOT end with "/"
+getfolder serverpath
+		downloads a folder from the fileserver, overwrites current one.
+		a copy of the folder, including it's location in the fileserver,
+		will be placed on your computer.
+		this action works recursively to all sub-directories.
+putfolder serverpath
+		uploads a folder to the fileserver, overwrites current files.
+		this action works recursively in all sub directories

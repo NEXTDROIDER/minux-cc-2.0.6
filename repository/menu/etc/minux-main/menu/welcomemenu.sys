@@ -1,0 +1,21 @@
+-- menu to chose welcome menu
+welcomemenu = true
+while welcomemenu == true do
+local welcomesetting = minux.getconfig("welcome")
+local title = "Minux Welcome screen - current:"..welcomesetting
+local choices = {"return/exit", "disable welcome screen", "enable welcome screen"}
+local actions = {}
+
+actions[1] = function()
+	welcomemenu = false
+  end
+actions[2] = function()
+  minux.debug("welcfg:disabled" , "minux")
+  minux.setconfig("welcome", "disabled")
+  end
+actions[3] = function()
+  minux.debug("welcfg:enabled" , "minux")
+  minux.setconfig("welcome" , "enabled")
+  end
+menu.menuOptions(title, choices, actions)
+end

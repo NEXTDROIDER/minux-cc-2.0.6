@@ -1,0 +1,23 @@
+Cryptofolder was created by 'Mensh123', https://linksta.cc/@Mensh123
+more info on https://codeberg.org/Mensh123/Cryptofolder/src/branch/main
+
+CryptoNet was created by 'SiliconSloth', more info on
+https://github.com/SiliconSloth/CryptoNet/tree/master
+
+
+/bin/cryptofolder.sh - cryptofolder installer/launcher.
+- server ( serverpath , servername)
+	the server version of cryptofolder, needs a folder
+	to work from and a name to call itself.
+- client ( host)
+	client version of cryptofolder, use this to
+	browse a server. it requires a server
+- config
+	server configuration, use this to change the
+	configuration file.
+- update
+	forcefully removes all cryptonet and cryptofolder
+	files and re-downloads them from their source.
+	
+	further instructions have to be obtained @ their respective
+	creator's websites, this program is simply an installer.

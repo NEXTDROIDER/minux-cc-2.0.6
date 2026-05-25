@@ -1,0 +1,14 @@
+AIF=true
+https://minux.cc/apt/2.0/soft/
+version=1.0
+author=minux-team
+php=true
+[filelist]
+/etc/api/dev
+/etc/apt/alias/devlib.al
+/etc/apt/boot/devlib.d
+/bin/printfile.sh
+/bin/playsong.sh
+/gbin/printfile.exe
+/etc/man/printfile.man
+/etc/man/playsong.man

@@ -1,0 +1,9 @@
+AIF=true
+https://minux.cc/apt/2.0/soft/
+version=1.0
+author=minux-team
+php=true
+[filelist]
+/bin/autologin.sh
+/etc/apt/alias/autologin.al
+/etc/apt/boot/autologin.d

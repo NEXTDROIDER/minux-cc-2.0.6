@@ -1,0 +1,116 @@
+-- RedNet Web Transfer Protocol, written by shorun
+-- these functions talk to a "tablature rednet webserver".
+-- errors: 900 = noack-server not found  901 = file information sync fail  902 = file data sync fail  903 = access denied  904 = file not found
+-- 905 = no dhcp server for lookup   906 = dhcp lookup nil   907 = name not found   908 = server did not reply to ping   909 = getfile data nil
+-- 910 = error:no error
+
+function get(server, filename)
+    expect(1, server, "number")
+    expect(2, filename, "string")
+    -- connect to server
+    minux.debug("RN-GET-START:"..server..":"..filename,"rnwtp")
+    rednet.send(server, "RN-GET")
+    local tempdata = netlib.getstring(server, 3)
+    if tempdata == nil or tempdata == false then
+        minux.debug("RN-GET-E-900-NOACK","rnwtp")
+        return 900
+    end
+    -- send file data
+    minux.debug("RN-GET-FILE:"..filename,"rnwtp")
+    local reply = netlib.sendstring(server, filename)
+    if reply == nil or reply == false then
+        minux.debug("RN-GET-E-901-DATASYNCFAIL","rnwtp")
+        return 901
+    end
+    -- get the file
+    tempdata = netlib.getstring(server, 3)
+    if tempdata == false or tempdata == nil then
+        minux.debug("RN-GET-E-902-FILESYNCFAIL","rnwtp")
+        return 902
+    elseif tempdata == "RN-GET-804" then
+        minux.debug("RN-GET-E-904-NOFILE","rnwtp")
+        return 904
+    else
+        minux.debug("RN-GET-DONE","rnwtp")
+        return tempdata
+    end
+end
+
+function fetch(servername, filename)
+    expect(1, servername, "number","string")
+    expect(2, filename, "string")
+    minux.debug("RN-FETCH:"..servername..":"..filename,"rnwtp")
+    if _G.server == nil or _G.server == "[none]" then
+        minux.debug("E:905:no DHCP server","rnwtp")
+        return 905
+    end
+    dhcp.lookup(servername)
+    if _G.lookupid == nil then
+        minux.debug("DHCP:LOOKUP:E:906","rnwtp")
+        return 906
+    end
+    minux.debug("DHCP:LOOKUP:ID:".._G.lookupid,"rnwtp")
+    if _G.lookupid == "unknown" then
+        minux.debug("DHCP:LOOKUP:NOEXIST","rnwtp")
+        return 907
+    end
+    local target = tonumber(_G.lookupid)
+    local pingreply = netlib.ping(target)
+    if pingreply ~= true then
+        minux.debug("SERVER:PING:E:908:NOREPLY","rnwtp")
+        return 908
+    else
+        local filedata = rnwtp.get(target, filename)
+        if filedata == nil then
+            filedata = 909
+        end
+        return filedata
+    end
+    return 910
+end
+
+function post(server, file, argument)
+    expect(1, server, "number","string")
+    expect(2, file, "string")
+    expect(3, argument, "string")
+    minux.debug("INIT:POST:"..server..":"..file..":"..argument,"rnwtp")
+    if _G.server ~= nil or _G.server == "[none]" then
+        dhcp.lookup(tostring(server))
+    end
+    if _G.lookupid == nil then
+        minux.debug("POST:LOOKUP:E:907","rnwtp")
+    else
+        minux.debug("POST:LOOKUP:".._G.lookupid)
+        server = _G.lookupid
+    end
+    minux.debug("POST:PING:"..server,"rnwtp")
+    local target = tonumber(server)
+    local pingreply = netlib.ping(target)
+    if pingreply == true then
+        server = target
+        minux.debug("POST:S:"..server,"rnwtp")
+    else
+        minux.debug("POST:E:908:"..server,"rnwtp")
+        return 908
+    end
+    rednet.send(server,"RN-POST")
+    local preply = netlib.getstring(server,3)
+    if preply ~= "RN-POST-ACK" then
+        minux.debug("POST:E:900","rnwtp")
+        return 900
+    end
+    minux.debug("RN-POST-TABLE","rnwtp")
+    local pdata = {}
+    pdata[1] = file
+    pdata[2] = argument
+    netlib.sendtable(server,pdata)
+    local preply = netlib.getstring(server,3)
+    if preply == nil or preply == false then
+        minux.debug("RN-POST:E:901","rnwtp")
+        return 901
+    elseif preply == "POST-NOSCRIPT" then
+        minux.debug("POST-NOSCRIPT:E904","rnwtp")
+        return 904
+    end
+    return true
+end

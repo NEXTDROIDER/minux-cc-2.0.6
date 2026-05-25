@@ -1,0 +1,51 @@
+-- netprint client api
+function testserver(server)
+    expect(1,server,"number")
+    minux.debug("netprint-check:"..server,"netprint")
+    rednet.send(server, "netprint-check")
+    local reply = netlib.getstring(server,3)
+    if reply == "np-ver" then
+        minux.debug("netprint-check-true","netprint")
+        return true
+    else
+        minux.debug("netprint-check-false","netprint")
+        return false
+    end
+end
+function printfile(server, file,name)
+    expect(1,server,"number")
+    expect(2,file,"string")
+    expect(3,name,"string")
+    -- is the file real?
+    if fs.exists(file) ~= true then
+        minux.debug(file..":no such file","netprint")
+        return 1004
+    end
+    -- does the server reply?
+    minux.debug("contacting printserver","netprint")
+    rednet.send(server,"netprint-print")
+    local reply = netlib.getstring(server,3)
+    if reply == false or reply == nil then
+        minux.debug("server noreply","netlib")
+        return 1000
+    else
+    -- sending payload!
+        minux.debug("sending payload","netprint")
+        local datafile = minux.readtable(file)
+        local data = {}
+        data[1] = _G.login
+        data[2] = _G.masterpass
+        data[3] = name
+        netlib.sendtable(server,data)
+        netlib.sendtable(server,datafile)
+    end
+    -- awaiting reply
+    reply = netlib.getstring(server,3)
+     if reply == false or reply == nil then
+        minux.debug("server noreply","netlib")
+        return 1001
+    else
+        minux.debug("result:"..reply,"netprint")
+        return reply
+    end
+end

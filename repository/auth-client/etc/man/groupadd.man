@@ -1,0 +1,13 @@
+groupadd, easy command to add a new group
+executable location: '/bin/groupadd.sh'  alias: 'groupadd'
+groupadd is part of the 'auth-client' app
+
+used to quickly create a new group on AUTH
+
+syntax: 'groupadd groupname'
+
+any logged in user can create a group
+the user will get marked as "owner" for AUTH purpuses.
+this is seperate from the actual ownership of the system (AUTH)
+only admins and makers can delete a group.
+users need to be logged in and networked to adjust a group.

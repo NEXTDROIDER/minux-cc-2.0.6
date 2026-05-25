@@ -1,0 +1,27 @@
+-- netprint listen program. this listens for incomming calls.
+minux.debug("starting netprint","netprint")
+-- we set a global variable that we can disable with our controller program
+-- once this is set to false by said program, we stop doing this and shut down as a result.
+_G.netprintrunning = true
+print("Netprint:starting")
+minux.monitorprint("Netprint:starting")
+minux.debug("Netprint:starting","netprint")
+local tempid = false
+local tempdata = false
+while _G.netprintrunning == true do
+-- now we listen for incomming requests, check for halt every 5 seconds.
+    tempid, tempdata = rednet.receive(5)
+    if tempdata == "ping" then
+      netlib.getping(tempid)
+      minux.monitorprint("Ping:"..tempid)
+      minux.debug("ping from:"..tempid, "netprint")
+    elseif tempdata == "netprint-print" then
+      minux.monitorprint("Print:"..tempid)
+      minux.debug("print from:"..tempid, "netprint")
+      shell.switchTab(shell.openTab("/etc/netprint-server/print.sys "..tempid))
+    elseif tempdata == "netprint-check" then
+      minux.monitorprint("Check:"..tempid)
+      minux.debug("check from:"..tempid, "netprint")
+      netlib.sendstring(tempid, "np-ver")
+    end
+end

@@ -1,0 +1,9 @@
+AIF=true
+https://minux.cc/apt/2.0/soft/
+version=1.0
+author=MechanicNote
+php=true
+[filelist]
+/bin/clock.sh
+/gbin/clock.exe
+/etc/apt/alias/clock.al

@@ -1,0 +1,23 @@
+-- tablature listen script, written by shorun
+-- this listens for incomming requests and forwards it to the correct subroutine.
+-- the handlerequest file is a seperate one to allow multiple sessions and avoid crashing the entire server on fail.
+minux.monitorprint("Starting tablature")
+minux.debug("starting tablature","tablature")
+
+while _G.tablaturerunning == true do
+    local tempid, tempdata = rednet.receive(5)
+    -- respond to ping, it's polite
+    if tempdata == "ping" then
+        netlib.getping(tempid)
+    -- get request, forward it to handlerequest.sys
+    elseif tempdata == "RN-GET" then
+        minux.debug("RN-GET ID:"..tempid,"tablature")
+        minux.monitorprint("RN-GET ID:"..tempid)
+        shell.switchTab(shell.openTab("/etc/tablature/handlerequest.sys "..tempid.." "..tempdata))
+    -- post request, forward it to handlepost.sys
+    elseif tempdata == "RN-POST" then
+        minux.debug("RN-POST ID:"..tempid,"tablature")
+        minux.monitorprint("RN-POST ID:"..tempid)
+        shell.switchTab(shell.openTab("/etc/tablature/handlepost.sys "..tempid))
+    end
+end

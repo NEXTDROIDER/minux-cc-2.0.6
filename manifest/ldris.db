@@ -1,0 +1,11 @@
+AIF=true
+https://minux.cc/apt/2.0/soft/
+version=1.0
+author=LDDestroier
+php=true
+[filelist]
+/bin/ldris.sh
+/gbin/tetris.exe
+/etc/apt/alias/ldris.al
+/etc/apt/cleanup/ldris.db
+/etc/man/ldris.man

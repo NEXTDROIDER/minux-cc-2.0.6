@@ -1,0 +1,80 @@
+-- door program configuration and launcher script
+-- first we check if the configuration is sound, if not found we fix it
+-- to prevent launching twice due to workspace reloading all settings/scripts, we check if we already launched
+if _G.doorlaunched == true then
+	return false
+else
+	_G.doorlaunched = true
+end
+
+-- step one, config files
+local startconfig = false
+if fs.exists("/usr/door/settings.cfg") then
+	if minux.findline("/usr/door/settings.cfg","shelltype=") == false then
+		if term.isColor then
+			minux.insertline("/usr/door/settings.cfg","shelltype=advanced")
+		else
+			minux.insertline("/usr/door/settings.cfg","shelltype=basic")
+		end
+	elseif minux.findline("/usr/door/settings.cfg","side=") == false then
+		startconfig = true
+	elseif minux.findline("/usr/door/settings.cfg","toggle=") == false then
+		minux.insertline("/usr/door/settings.cfg","toogle=enabled")
+	elseif minux.getconfig("crashhandler") == "enabled" then
+		minux.setconfig("crashhandler","disabled")
+	end
+else
+	startconfig = true
+end
+if startconfig == true then
+	local tempfile = fs.open("/usr/door/settings.cfg","w")
+	if term.isColor() then
+		tempfile.writeLine("shelltype=advanced")
+	else
+		tempfile.writeLine("shelltype=basic")
+	end
+	tempfile.close()
+	minux.insertline("/usr/door/settings.cfg","toggle=enabled")
+	shell.run("/bin/doorconfig.sh")
+end
+
+-- now we can verify information.
+-- shelltype first
+local configfail = false
+local temp = minux.findline("/usr/door/settings.cfg","shelltype=")
+local shelltype = minux.printline("/usr/door/settings.cfg", temp)
+if shelltype ~= "shelltype=advanced" and shelltype ~= "shelltype=basic" then
+	print("config file corrupt:shelltype, resetting")
+	configfail = true
+end
+
+-- toggle next
+temp = minux.findline("/usr/door/settings.cfg","toggle=")
+local toggle = minux.printline("/usr/door/settings.cfg", temp)
+if toggle ~= "toggle=enabled" and toggle ~= "toggle=disabled" then
+	print("config file corrupt:toggle, resetting")
+	configfail = true
+end
+
+-- output side next
+temp = minux.findline("/usr/door/settings.cfg","side=")
+local side = minux.printline("/usr/door/settings.cfg", temp)
+if side ~= "side=left" and side ~= "side=right" and side ~= "side=top" and side ~= "side=bottom" and side ~= "side=front" and side ~= "side=back" then
+	print("config file corrupt:side, resetting")
+	configfail = true
+end
+
+if configfail == true then
+	print("invalid configuation, resetting")
+	os.sleep(2)
+	fs.delete("/usr/door/settings.cfg")
+	minux.restart()
+end
+
+-- now we can launch the actual program.
+print("launching door.sys")
+if shelltype == "shelltype=advanced" then
+	shell.openTab("/etc/door/door.sys")
+else
+	shell.run("/etc/door/door.sys")
+end

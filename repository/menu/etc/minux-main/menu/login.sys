@@ -1,0 +1,71 @@
+-- login config menu
+local loginmenu = true
+while loginmenu == true do
+	local loginsetting = minux.getconfig("login")
+	local title = "Minux AUTH setting:"..loginsetting
+	local choices = {}
+	if pocket or turtle then
+		choices = {"return/exit", "disable - no login", "local - local login", "networked - full network"}
+	else
+		choices = {"return/exit", "disable - no login required - no network", "local - local storage - no network", "networked - AUTH storage - full network"}
+	end
+	local actions = {}
+
+	actions[1] = function()
+	loginmenu = false
+	end
+	actions[2] = function()
+	minux.debug("logcfg:disabled" , "minux")
+	minux.setconfig("login","disabled")
+	end
+	actions[3] = function()
+	minux.debug("logcfg:local" , "minux")
+	minux.setconfig("login","local")
+	end
+	actions[4] = function()
+-- we need to check if an AUTH actually exists
+-- if dhcp is unknown, attempt to find it
+		print("seeking DHCP server...")
+		if auth == nil then apt.install("auth-client") end
+		if _G.server == nil or _G.server == "[none]" then
+			minux.debug("nlogin:searching dhcp" , "minux")
+			os.run({} , "/boot/network/dhcp.sys")
+		end
+		if _G.server == nil or _G.server == "[none]" then
+			minux.debug("login:E:204:DHCP not found" , "minux")
+			print("install a dhcp and AUTH server first or set login to local")
+			print("hit enter to cancel")
+			read()
+		else
+			print("seeking AUTH server...")
+			rednet.send(_G.server , "AUTH-ID")
+			minux.debug("login:AUTH-REQ-".._G.server , "minux")
+			temp, data = rednet.receive(1)
+			if temp == _G.server then
+				minux.debug("login:DHCP-reply" , "minux")
+				if data == "AUTH-NOEXIST" then
+					minux.debug("login:E:205:noauth" , "minux")
+					print("error:no auth server found, install one first.")
+					print("Ensure the DHCP server knows who the AUTH server is")
+					read()
+				elseif data == nil or data == "" then
+					minux.debug("login:E:206:Data nil error" , "minux")
+					print("error:the auth server data is invalid")
+					print("Check the DHCP's AUTH server settings")
+					read()
+				else
+					tempauth = tonumber(data)
+					minux.debug("login:auth-server:"..tempauth , "minux")
+					print("auth found, setting to networked")
+					data = nil
+					minux.debug("logcfg:networked" , "minux")
+					minux.setconfig("login","network")
+				end
+			else
+				print("DHCP did not reply, is it busy?")
+				read()
+			end
+		end
+	end	
+	menu.menuOptions(title, choices, actions)
+end

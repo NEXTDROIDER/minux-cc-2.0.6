@@ -1,0 +1,6 @@
+write("filename:")
+local welcomefile = read()
+
+local reply = apilib.changewelcome(welcomefile)
+if reply == true then print("Welcome file changed")
+else print("change failed") end

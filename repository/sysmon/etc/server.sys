@@ -1,0 +1,6 @@
+if pocket or turtle then
+    print("turtles and pockets can't run sysmon")
+    read()
+    return false
+end
+shell.run("/bin/sysmon.sh")

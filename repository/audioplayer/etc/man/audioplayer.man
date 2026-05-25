@@ -1,0 +1,20 @@
+this is a third party program created by 'GroupXyz'
+https://forums.computercraft.cc/index.php?topic=604.0
+
+it is installed in /etc/audioplayer/
+
+run audioplayer and it will generate a folder called "sounds/" where you place your audiofiles.
+After you added audiofiles (see below), audioplayer will list them and give you the option to play them.
+
+Important:
+To add new audiofiles, you have to convert them into DFPWM format which these websites do for example (please note, these websites are not mine and i am not responsible for changes with them):
+
+https://music.madefor.cc/
+https://remote.craftos-pc.cc/music/
+
+Now copy the output link and do:
+wget (link) (filename)
+You can just move it into the sounds/ folder and it will be detected by the script when you start it.
+
+Update-history:
+2.0: Added repeat option

@@ -1,0 +1,102 @@
+function buildmenu(input)
+  expect(1,input,"number")
+  if input == 1 then type = "primary text"
+  elseif input == 2 then type = "background color"
+  elseif input == 3 then type = "system color"
+  else return false end
+  local typemenu = true
+  local colors = minux.readtable("/home/".._G.login.."/minux-config/bashcolours.cfg")
+  if colors == false then
+    colors = {"green","black","red"}
+  end
+  while typemenu == true do
+    local mtitle = type.."="..colors[input]
+    local mchoices = {"return/exit", "white", "orange", "magenta","light blue", "yellow","lime","pink","gray","light gray", "cyan","purple","blue","brown","green","red","black"}
+    local mactions = {}
+    mactions[1] = function()
+      typemenu = false
+      minux.bashcolor(colors[1],colors[2],colors[3])
+    end
+    mactions[2] = function()
+      colors[input] = "white"
+    end
+    mactions[3] = function()
+      colors[input] = "orange"
+      end
+    mactions[4] = function()
+      colors[input] = "magenta"
+    end
+    mactions[5] = function()
+      colors[input] = "lightBlue"
+    end
+    mactions[6] = function()
+      colors[input] = "yellow"
+    end
+    mactions[7] = function()
+      colors[input] = "lime"
+    end
+    mactions[8] = function()
+      colors[input] = "pink"
+    end
+    mactions[9] = function()
+      colors[input] = "gray"
+    end
+    mactions[10] = function()
+      colors[input] = "lightGray"
+    end
+    mactions[11] = function()
+      colors[input] = "cyan"
+    end
+    mactions[12] = function()
+      colors[input] = "purple"
+    end
+    mactions[13] = function()
+      colors[input] = "blue"
+    end
+    mactions[14] = function()
+      colors[input] = "brown"
+    end
+    mactions[15] = function()
+      colors[input] = "green"
+    end
+    mactions[16] = function()
+      colors[input] = "red"
+    end
+    mactions[17] = function()
+      colors[input] = "black"
+    end
+    menu.menuOptions(mtitle, mchoices, mactions)
+    end
+end
+
+-- system colors menu
+if term.isColor() ~= true then
+  print("advanced systems only")
+  print("hit enter to continue")
+  read()
+  return false
+end
+local colormenu = true
+while colormenu == true do
+  local title = "system colors configuration"
+  local choices = {"return/exit", "primary text color", "background color", "system text color","reset to default"}
+  local actions = {}
+
+  actions[1] = function()
+	colormenu = false
+  end
+  actions[2] = function()
+    buildmenu(1)
+  end
+  actions[3] = function()
+    buildmenu(2)
+  end
+  actions[4] = function()
+    buildmenu(3)
+  end
+  actions[5] = function()
+    local colors = {"green","black","red"}
+    minux.writetable("/home/".._G.login.."/minux-config/bashcolours.cfg",colors)
+  end
+  menu.menuOptions(title, choices, actions)
+end

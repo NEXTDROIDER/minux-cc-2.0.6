@@ -1,0 +1,45 @@
+args = { ... }
+local clientid = tonumber(args[1])
+-- an easy output print function
+function fulloutput(input)
+    if minux.getconfig("debug") ~= "enabled" or minux.config("debug") ~= full then
+        print(input)
+    end
+    minux.debug(input,"tablature")
+    minux.monitorprint(input)
+end
+-- reply and confirm post request. abort and log if we fail.
+local preply = netlib.sendstring(clientid, "RN-POST-ACK")
+if preply == nil then
+    fulloutput("Ack reply failed : nil")
+    return false
+elseif preply == "" then
+    fulloutput("ack reply failed: nil")
+    return false
+end
+-- now listen for the data to return, abort if fail.
+local pdata = netlib.gettable(clientid,3)
+if pdata == nil then
+    fulloutput("data reply failed : nil")
+    return false
+elseif pdata == false then
+    fulloutput("data reply failed: false")
+    return false
+end
+-- we should have our data now, so lets check.
+-- does the script we want to post on exist?
+if fs.exists(_G.tablaturecfg[1].."/"..pdata[1]) == false then
+    fulloutput("post:noscript:"..clientid..":"..pdata[1])
+    netlib.sendstring(clientid,"POST-NOSCRIPT")
+    return false
+end
+-- do we have arguments? we don't reply because the client should not send noarg.
+if pdata[2] == nil or pdata[2] == "" or pdata[2] == false then
+    fulloutput("post:noarg:"..clientid)
+    return false
+end
+-- if we're still around, lets call the script!
+fulloutput("post:run:".._G.tablaturecfg[1].."/"..pdata[1]..":"..pdata[2])
+netlib.sendstring(clientid, "POST-ACCEPT")
+shell.run(_G.tablaturecfg[1].."/"..pdata[1].." "..pdata[2])
+return true

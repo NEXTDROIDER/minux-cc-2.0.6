@@ -1,0 +1,15 @@
+-- open is meant to request a door opening
+-- this is the exe, it takes input and forwards it
+term.clear()
+term.setCursorPos(1,1)
+print("open/door")
+write("Enter doorname:")
+local door = read()
+if door == nil then print("invalid input") return false end
+write("optional-timer:")
+local timer = read()
+if timer == nil or timer == "" then timer = "5" end
+shell.run("open "..door.." "..timer)
+print("")
+print("hit enter to exit")
+read()

@@ -1,0 +1,585 @@
+-- auth-client api's
+-- dhcp
+function useradd(username , password, admin)
+	expect(1,username,"string")
+	expect(2,password,"string")
+	expect(3,admin,"string","nil")
+	if admin == "ADM" then minux.debug("auth-makeadmin","auth")
+	else admin = false end
+	rednet.send(_G.authserver,"AUTH-USR-ADD")
+	temp, data = rednet.receive(2)
+	if data == "AUTH-ACK" then
+		local sendtable = {}
+		sendtable[1] = _G.login
+		sendtable[2] = _G.masterpass
+		sendtable[3] = username
+		sendtable[4] = password
+		sendtable[5] = admin
+		local reply = netlib.sendtable(_G.authserver, sendtable)
+		if reply == true then
+			minux.debug("adduser:Data sync" , "auth")
+		else
+			minux.debug("adduser:E:302" , "auth")
+			print("failed to syncronize data, most likely a network collision")
+			print("if this persists, check for systems broadcasting or in a reboot loop")
+			return false
+		end
+		reply = nil
+	else
+		minux.debug("adduser:E:305" , "auth")
+		print("failed to connect to AUTH server")
+		print("check if the server is running and in reach")
+		minux.debug("adduser:auth-noreply" , "auth")
+		return false
+	end
+	local reply = netlib.getstring(_G.authserver, 3)
+	if reply == "AUTH-DENIED" then
+		print("Access denied")
+		minux.debug("adduser:Denied" , "auth")
+	elseif reply == "AUTH-EXIST" then
+		print("user exists")
+		minux.debug("adduser:exists" , "auth")
+	elseif reply == "AUTH-GRANTED" then
+		print("User created")
+		minux.debug("adduser:accept" , "auth")
+	else
+		print("Noreply")
+		minux.debug("adduser:E:304","auth")
+	end
+end
+
+-- delete users
+function userdel(username)
+	expect(1,username,"string")
+	minux.debug("userdel:contacting auth","auth")
+	rednet.send(_G.authserver, "AUTH-USR-DEL")
+	local tempid, data = rednet.receive(3)
+	if data ~= "AUTH-USR-SYNC" then
+		minux.debug("deluser:E:305:auth-noreply" , "auth")
+		print("failed to connect to AUTH server")
+		print("check if the server is running and in reach")
+		return false
+	end
+	local sendtable = {}
+	sendtable[1] = _G.login
+	sendtable[2] = _G.masterpass
+	sendtable[3] = username
+	local reply = netlib.sendtable(_G.authserver, sendtable)
+	if reply ~= true then
+		minux.debug("deluser:E:302:sync-fail" , "auth")
+		rednet.send(_G.authserver, "SYNC:FAIL")
+		print("failed to syncronize data, most likely a network collision")
+		print("if this persists, check for systems broadcasting or in a reboot loop")
+		return false
+	end
+	local data = netlib.getstring(_G.authserver, 3)
+	if data == "AUTH-NOEXIST" then
+		print("User does not exist")
+		minux.debug("deluser:user-noexist" , "auth")
+	elseif data == "AUTH-DEL" then
+		print("User deleted")
+		minux.debug("deluser:granted" , "auth")
+	elseif data == "AUTH-DENIED" then
+		print("Access denied")
+		minux.debug("deluser:denied" , "auth")
+	else
+		minux.debug("deluser:E:304:auth-noreply" , "auth")
+		print("the AUTH server did not reply")
+		print("anything could have happened, check the auth's output")
+	end
+end
+
+function setpass(username , password)
+	expect(1,username,"string")
+	expect(2,password,"string")
+	minux.debug("setpass:starting" , "auth")
+	minux.debug("contacting auth" , "auth")
+	print("Connecting to server")
+	rednet.send(_G.authserver, "AUTH-USR-PSW")
+	local tempid, tempdata = rednet.receive(1)
+	if tempdata ~= "AUTH-USR-SYNC" then
+		minux.debug("setpass:E:305:auth-noreply" , "auth")
+		print("failed to connect to AUTH server")
+		print("check if the server is running and in reach")
+		return false
+	end
+	minux.debug("setpass:send-data" , "auth")
+	local data = {}
+	data[1] = _G.login
+	data[2] = _G.masterpass
+	data[3] = username
+	data[4] = password
+	local reply = netlib.sendtable(_G.authserver, data)
+	if reply ~= true then
+		print("AUTH:SYNC:FAIL:504")
+		print("failed to syncronize data, most likely a network collision")
+		print("if this persists, check for systems broadcasting or in a reboot loop")
+		rednet.send(_G.authserver, "SYNC:FAIL")
+		minux.debug("setpass:E:302:sync-error" , "auth")
+		return false
+	else
+		minux.debug("setpass:data-sync" , "auth")
+	end
+	data = netlib.getstring(1)
+	if data == "AUTH-GRANTED" then print("Password changed") minux.debug("setpass:accept" , "auth")
+	elseif data == "AUTH-NOEXIST" then print("User does not exist") minux.debug("setpass:noexist" , "auth")
+	elseif data == "AUTH-DENIED" then print("Access denied") minux.debug("setpass:E:300:denied" , "auth")
+	else
+		minux.debug("setpass:E:304:no-reply" , "auth")
+		print("the AUTH server did not reply")
+		print("anything could have happened, check the auth's output")
+	end
+end
+
+-- check system ownership
+function checkowner()
+	minux.debug("checkowner:starting" , "auth")
+	minux.debug("checkowner:searching for auth" , "auth")
+	_G.owner = false
+	_G.ownergroup = false
+	_G.systemname = false
+	if _G.server ~= nil then
+		rednet.send(_G.server , "AUTH-ID")
+	else
+		print("no DHCP server known, aborting")
+		minux.debug("checkowner:E:306" , "auth")
+		return false
+	end
+	temp, auth = rednet.receive(1)
+	if auth == nil then
+		minux.debug("checkowner:E:301" , "auth")
+		print("failed to contact the DHCP server")
+		return false
+	else
+		minux.debug("checkowner:auth found" , "auth")
+		_G.authserver = tonumber(auth)
+	end
+	minux.debug("checkowner:contacting auth" , "auth")
+	local sysid = os.getComputerID()
+	rednet.send(_G.authserver, "AUTH-OWN-REQ")
+	local temp, data = rednet.receive(1)
+	if data == nil then print("Auth did not reply")
+		minux.debug("checkowner:E:305" , "auth")
+		return false
+	end
+	data = nil
+	minux.debug("checkowner:sending data" , "auth")
+	local reply = netlib.sendstring(_G.authserver, tostring(sysid))
+	minux.debug("checkowner:verification" , "auth")
+	if reply ~= true then
+		minux.debug("checkowner:E:302" , "auth")
+		print("auth sync error")
+		return false
+	end
+	local data = {}
+	data = netlib.gettable(_G.authserver, 3)
+	minux.debug("checkowner:awaiting reply" , "auth")
+	if data == "AUTH-OWN-NOEXIST" then
+		_G.owner = false
+		_G.ownergroup = false
+		_G.systemname = false
+		minux.debug("checkowner:no owner" , "auth")
+		return true
+	end
+	minux.debug("checkowner:owner:"..sysid , "auth")
+	_G.owner = data[1]
+	_G.ownergroup = data[2]
+	_G.ownername = data[3]
+	if _G.ownergroup == false then _G.ownergroup = "none" end
+	minux.debug("checkowner:ownergroup:".._G.ownergroup , "auth")
+	minux.debug("checkowner:ownername:".._G.ownername , "auth")
+end
+
+function setowner(sysname , sysgroup)
+	expect(1,sysname,"string")
+	expect(2,sysgroup,"string","nil")
+	minux.debug("setowner:starting" , "auth")
+	minux.debug("setowner:contacting auth" , "auth")
+	if _G.server ~= nil then
+		rednet.send(_G.server , "AUTH-ID")
+	end
+	temp, auth = rednet.receive(1)
+	if auth == nil then
+		print("failed to contact the DHCP server")
+		minux.debug("setowner:E:306:dhcp-noreply" , "auth")
+		return false
+	else
+		minux.debug("setowner:auth-found" , "auth")
+		_G.authserver = tonumber(auth)
+	end
+	minux.debug("setowner:contacting auth" , "auth")
+	sysid = os.getComputerID()
+	rednet.send(_G.authserver, "AUTH-OWN-SET")
+	temp, data = rednet.receive(1)
+	if data == nil then
+		print("Auth did not reply")
+		minux.debug("setowner:E:305:auth-noreply" , "auth")
+		return false
+	end
+	minux.debug("setowner:sending data" , "auth")
+	local senddata = {}
+	senddata[1] = sysid
+	senddata[2] = sysname
+	senddata[3] = _G.login
+	senddata[4] = _G.masterpass
+	senddata[5] = sysgroup
+	local reply = netlib.sendtable(_G.authserver, senddata)
+	if reply == false then
+		print("auth sync error")
+		minux.debug("setowner:E:302:sync-fail" , "auth")
+		return false
+	else
+		minux.debug("setowner:data-sync" , "auth")
+		rednet.send(_G.authserver, "AUTH-OWN-SYNC")
+	end
+	local data = netlib.getstring(_G.authserver,3)
+	if data == "AUTH-OWN-EXIST" then
+		print("System already registered")
+		minux.debug("setowner:exists" , "auth")
+		return false
+	elseif data == "AUTH-OWN-DENIED" then
+		minux.debug("setowner:E:303:denied!" , "auth")
+		print("server:access denied")
+		return false
+	elseif data == "AUTH-OWN-ACCEPT" then
+		minux.debug("setowner:accept" , "auth")
+		print("changing ownership data")
+		_G.owner = _G.login
+		_G.ownergroup = sysgroup
+		_G.ownername = sysname
+		local tempfile = fs.open("/usr/auth-client/owner.cfg","w")
+		tempfile.writeLine("owned")
+		tempfile.close()
+		return true
+	else
+		minux.debug("setowner:E:304:no-reply" , "auth")
+		print("no reply received, check server output")
+		return false
+	end
+end
+
+function delowner()
+	minux.debug("delowner:starting" , "auth")
+	minux.debug("delowner:searching auth server" , "auth")
+	if _G.server ~= nil then
+		rednet.send(_G.server , "AUTH-ID")
+	end
+	local temp, auth = rednet.receive(1)
+	if auth == nil then
+		minux.debug("delowner:E:306" , "auth")
+		print("failed to contact the DHCP server")
+		return false
+	else
+		_G.authserver = tonumber(auth)
+	end
+	minux.debug("delowner:contacting auth" , "auth")
+	local sysid = os.getComputerID()
+	rednet.send(_G.authserver, "AUTH-OWN-REM")
+	local temp, data = rednet.receive(1)
+	if data == nil then
+		print("Auth did not reply")
+		minux.debug("delowner:E:305" , "auth")
+		return false
+	end
+	minux.debug("delowner:sending data" , "auth")
+
+	local data = {}
+	data[1] = sysid
+	data[2] = _G.login
+	data[3] = _G.masterpass
+	local reply = netlib.sendtable(_G.authserver, data)
+	minux.debug("delowner:verify" , "auth")
+	if reply == false then
+		print("auth sync error")
+		rednet.send(_G.authserver, "AUTH-OWN-FAIL")
+		minux.debug("delowner:E:302" , "auth")
+		return false
+	else
+		minux.debug("delowner:data sync" , "auth")
+	end
+	data = netlib.getstring(_G.authserver, 3)
+	if data == "AUTH-OWN-NOEXIST" then print("System unkown")
+		minux.debug("delowner:noexist" , "auth")
+		return false
+	elseif data == "AUTH-OWN-DENIED" then
+		minux.debug("delowner:E:303" , "auth")
+		print("access denied")
+		return false
+	elseif data == "AUTH-OWN-ACCEPT" then
+		minux.debug("delowner:accept" , "auth")
+		print("clearing ownership data")
+		_G.owner = false
+		_G.ownergroup = false
+		_G.ownername = false
+		fs.delete("/usr/auth-client/owner.cfg")
+	else
+		minux.debug("delowner:E:304" , "auth")
+		print("no reply received, check server output")
+	end
+end
+
+function checkgroup(groupname, login)
+	expect(1,groupname,"string")
+	expect(2,login,"string")
+	_G.isgroupmember = false
+	minux.debug("checkgroup:contacting server" , "auth")
+	rednet.send(_G.authserver, "AUTH-GRP-CHK")
+	local temp, data = rednet.receive(1)
+	if data ~= "AUTH-GRP-ACK" then
+		print("Auth did not reply")
+		minux.debug("checkgroup:E:305" , "auth")
+		return false
+	end
+	minux.debug("checkgroup:auth-ack, sending data" , "auth")
+	data = {}
+	data[1] = groupname
+	data[2] = login
+	local reply = netlib.sendtable(_G.authserver, data)
+	minux.debug("checkgroup:verification" , "auth")
+	if data == false then
+		minux.debug("checkgroup:E:302" , "auth")
+		rednet.send(_G.authserver, "AUTH-GRP-FAIL")
+		print("checkgroup:failed to verify data")
+		return false
+	else
+		rednet.send(_G.authserver, "AUTH-GRP-SYNC")
+		minux.debug("checkgroup:auth-sync" , "auth")
+	end
+	tempid, data = rednet.receive(1)
+	if data == true then
+		_G.isgroupmember = true
+		minux.debug("checkgroup:auth-reply-true" , "auth")
+		return true
+	elseif data == false then
+		minux.debug("checkgroup:auth-nomember")
+		return false
+	else
+		print("reply error, not true or false")
+		minux.debug("checkgroup:auth-reply-false" , "auth")
+		return false
+	end
+end
+
+function groupadd(groupname)
+	expect(1,groupname,"string")
+	minux.debug("addgroup:contacting auth" , "auth")
+	rednet.send(_G.authserver, "AUTH-GRP-MAKE")
+	local temp, data = rednet.receive(1)
+	if data ~= "AUTH-GRP-ACK" then
+		print("Auth did not reply")
+		minux.debug("addgroup:E:305:auth-noreply" , "auth")
+		return false
+	end
+	minux.debug("addgroup:auth-send-data" , "auth")
+	data = {}
+	data[1] = groupname
+	data[2] = _G.login
+	data[3] = _G.masterpass
+	local reply = netlib.sendtable(_G.authserver, data)
+	minux.debug("addgroup:verifying data" , "auth")
+	if data == false then
+		print("auth reply does not match sent data, aborting")
+		minux.debug("addgroup:E:302:auth sync error" , "auth")
+		return false
+	end
+	minux.debug("addgroup:awaiting reply" , "auth")
+	temp, data = rednet.receive(3)
+	if data == "AUTH-GRP-EXIST" then
+		print("group already exists")
+		minux.debug("groupadd:exists" , "auth")
+	elseif data == "AUTH-GRP-DENIED" then
+		minux.debug("groupadd:E:304:auth-denied" , "auth")
+		print("Access denied")
+	elseif data == "AUTH-GRP-ACCEPT" then
+		print("group created")
+		minux.debug("groupadd:accepted" , "auth")
+		return true
+	else
+		print("ERROR:no reply received, check server output")
+		minux.debug("addgroup:E:304:noreply" , "auth")
+	end
+	return false
+end
+
+function groupdel(groupname)
+	expect(1,groupname,"string")
+	minux.debug("delgroup:contacting auth" , "auth")
+	rednet.send(_G.authserver, "AUTH-GRP-DEL")
+	local temp, data = rednet.receive(1)
+	if data ~= "AUTH-GRP-ACK" then
+		minux.debug("delgroup:E:305" , "auth")
+		print("Auth did not reply")
+		return false
+	end
+	minux.debug("delgroup:sending data" , "auth")
+	data = {}
+	data[1] = groupname
+	data[2] = _G.login
+	data[3] = _G.masterpass
+	local reply = netlib.sendtable(_G.authserver, data)
+	minux.debug("delgroup:verify" , "auth")
+	if reply == false then
+		print("auth sync error")
+		minux.debug("delgroup:E:303" , "auth")
+		rednet.send(_G.authserver, "AUTH-OWN-FAIL")
+		return false
+	end
+	minux.debug("delgroup:await reply","auth")
+	data = netlib.getstring(_G.authserver, 3)
+	if data == "AUTH-GRP-NOEXIST" then
+		print("group does not exist")
+		minux.debug("delgroup:noexist" , "auth")
+	elseif data == "AUTH-GRP-DENIED" then
+		minux.debug("delgroup:denied" , "auth")
+		print("access refused, not an admin or owner")
+	elseif data == "AUTH-GRP-ACCEPT" then
+		print("group deleted")
+		minux.debug("delgroup:accept" , "auth")
+		return true
+	else
+		minux.debug("delgroup:E:304" , "auth")
+		print("ERROR:no reply received, check server output")
+	end
+	return false
+end
+
+function joingroup(groupname, username)
+	expect(1,groupname,"string")
+	expect(2,username,"string")
+	minux.debug("groupjoin:contacting auth" , "auth")
+	rednet.send(_G.authserver, "AUTH-GRP-UADD")
+	local temp, data = rednet.receive(1)
+	if data ~= "AUTH-GRP-ACK" then
+		print("Auth did not reply")
+		minux.debug("groupjoin:E:305:auth-noreply" , "auth")
+		return false
+	end
+	data = {}
+	data[1] = groupname
+	data[2] = username
+	data[3] = _G.login
+	data[4] = _G.masterpass
+	minux.debug("groupjoin:sending data" , "auth")
+	local reply = netlib.sendtable(_G.authserver, data)
+	minux.debug("groupjoin:verify" , "auth")
+	if reply == false then
+		print("auth sync error")
+		minux.debug("groupjoin:E:302:sync-fail" , "auth")
+		rednet.send(_G.authserver, "AUTH-OWN-FAIL")
+		return false
+	end
+	minux.debug("groupjoin:awaiting reply")
+	data = netlib.getstring(_G.authserver, 3)
+	if data == "AUTH-GRP-NOEXIST" then
+		print("group does not exist")
+		minux.debug("groupjoin:noexist" , "auth")
+	elseif data == "AUTH-GRP-DENIED" then
+		minux.debug("groupjoin:E:303:denied!" , "auth")
+		print("Access denied 303")
+	elseif data == "AUTH-GRP-UNOEXIST" then
+		print("user does not exist")
+		minux.debug("groupjoin:nouser" , "auth")
+	elseif data == "AUTH-GRP-ACCEPT" then
+		print("user added to group")
+		minux.debug("groupjoin:accept" , "auth")
+		return true
+	elseif data == "AUTH-GRP-NOACCEPT" then
+		minux.debug("groupjoin:denied" , "auth")
+		print("access refused, not an admin or owner")
+	else
+		print("ERROR:no reply received, check server output")
+		minux.debug("groupjoin:E:305:no-reply" , "auth")
+	end
+	return false
+end
+
+function leavegroup(groupname, tempusername)
+	expect(1,groupname,"string")
+	expect(2,tempusername,"string")
+	minux.debug("groupleave:starting" , "auth")
+	minux.debug("groupleave:u-"..tempusername.." g-"..groupname , "auth")
+	rednet.send(_G.authserver, "AUTH-GRP-UDEL")
+	minux.debug("contacting auth" , "auth")
+	local temp, data = rednet.receive(1)
+	if data ~= "AUTH-GRP-ACK" then
+		print("Auth did not reply")
+		minux.debug("groupleave:E:305:auth-noreply" , "auth")
+		return false
+	end
+	minux.debug("groupleave:sending data" , "auth")
+	local data = {}
+	data[1] = groupname
+	data[2] = tempusername
+	data[3] = _G.login
+	data[4] = _G.masterpass
+	local reply = netlib.sendtable(_G.authserver, data)
+	minux.debug("groupleave:verify" , "auth")
+	if reply == false then
+		print("auth sync error")
+		rednet.send(_G.authserver, "AUTH-OWN-FAIL")
+		minux.debug("groupleave:E:302:sync-fail" , "auth")
+		return false
+	end
+	minux.debug("groupleave:awaiting reply","auth")
+	local data = netlib.getstring(_G.authserver, 1)
+	if data == "AUTH-GRP-NOEXIST" then
+		print("group does not exist")
+		minux.debug("groupleave:group noexist" , "auth")
+	elseif data == "AUTH-GRP-DENIED" then
+		minux.debug("groupleave:E:303:denied!" , "auth")
+		print("server:access denied 303")
+	elseif data == "AUTH-GRP-UNOEXIST" then
+		minux.debug("groupleave:user noexist" , "auth")
+		print("user does not exist")
+	elseif data == "AUTH-GRP-ACCEPT" then
+		minux.debug("groupleave:accept" , "auth")
+		print("user cleared from group")
+		return true
+	elseif data == "AUTH-GRP-NOACCEPT" then
+		minux.debug("groupleave:denied" , "auth")
+		print("access refused, not an admin or owner")
+	else
+		minux.debug("groupleave:E:304:auth-noreply" , "auth")
+		print("ERROR:no reply received, check server output")
+	end
+	return false
+end
+
+
+-- auth mask function
+function mask(username, password)
+	expect(1,username,"string")
+	expect(2,password,"string")
+	if _G.mska == true then
+		minux.debug("already masked")
+	else
+		local oldlogin = _G.login
+		local oldpass = _G.masterpass
+		minux.debug("mask:masking as user:"..username , "auth")
+		minux.login(username, password)
+		if _G.validlogin ~= true then
+			_G.login = oldlogin
+			_G.masterpass = oldpass
+			minux.debug("denied", "auth")
+		else
+			_G.mskl = oldlogin
+			_G.mskp = oldpass
+			_G.mska = true
+		end
+		oldlogin = nil
+		oldpass = nil
+	end
+end
+-- auth unmask
+function unmask()
+	if _G.mska == true then
+		minux.debug("mask:unmasking","auth")
+		_G.login = _G.mskl
+		_G.masterpass = _G.mskl
+		_G.mska = nil
+		_G.mskl = nil
+		_G.mskp = nil
+	else
+		minux.debug("not masked", "auth")
+	end
+end

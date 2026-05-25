@@ -1,0 +1,47 @@
+progdor, archive program
+executable location: '/bin/progdor.sh'  alias:'progdor'
+progdor is part of the 'progdor' app
+
+this is a 3rd party app created by "LLDestroier" on CC forums
+https://forums.computercraft.cc/index.php?topic=127.0
+
+Progdor2 is a utility that packages folders into archives for easy distribution.
+There are several other features, too, 
+such as compression (CCA, thanks to minizbot2012), self-extraction, 
+and modem/HTTP file transferring with Skynet (thanks to Gollark).
+
+Use with
+  progdor [options] inputFolder (outputFile) -- Packs
+  progdor [options] inputFile (outputFolder) -- Unpacks
+
+Progdor2 files will hereby be called PDR files for brevity's sake.
+
+Options:
+-pb [pastebin ID] : Unpacks a PDR file from pastebin
+ Ex. progdor2 -pb 997dWNX4 theRom
+-PB : Uploads a PDR to pastebin
+ Ex. progdor2 -PB rom/programs
+ Just to let you know, all pastebin uploads are logged at ".progdor_PB_uploads"
+-dd [download URL] : Unpacks a PDR from a specified URL.
+-e : Adds on self-extract code to a PDR package. They can't be 
+	extracted normally, so they must be ran to extract.
+ Ex. progdor2 someFolder -e
+ Now you can just run 'someFolder' and it'll extract.
+-s : Silences all terminal output (unless there's a prompt)
+-r : Wait to receive a file from modem/HTTP. Always asks to overwrite. You can optionally 
+	specify where the file will download to, if you like.
+ Ex. progdor2 -r [path it will download to]
+-t : Transmits a file/folder-to-be-packed to any Progdor2 instances currently waiting.
+ Ex. progdor2 -t anyFile/anyFolder
+-S: Uses Skynet instead of modems for "-r" and "-t". I got around the 64KB limit 
+	for Skynet, so don't worry.
+ Ex. progdor2 -S -t someFolder
+  progdor2 -S -r
+-a : Allows other programs to use progdor2.lua as an API.
+ Ex. local progdor = loadfile("progdor2.lua")("-a")
+-c : Enables CCA compression. This is incompatible with "-e", since the space saving of 
+	compression would be lost if the compression algorithm was tacked on, too.
+-m : Specifies the main executable inside an archive. Only really useful for 
+	other apps that might use PDR archives.
+-i : Inspect an archive without extracting it.
+-o : Overwrite files without asking. Is negated if you try to overwrite a read-only file/folder, though.

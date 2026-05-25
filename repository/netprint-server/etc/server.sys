@@ -1,0 +1,17 @@
+-- netprint server launcher, this checks the system and launches netprint.
+if minux.getconfig("login") == "disabled" then
+    print("netprint requires a login system to be enabled.")
+    print("use 'config' to configure either local or network 'auth'")
+    print("see the wiki for more information at https://minux.cc/wiki")
+    local input = read()
+    return false
+end
+if _G.modemside == "[NONE]" then
+    print("this system doesn't even have a modem")
+    print("how do you expect it to talk to the network?")
+    print("by carrier pigeon?")
+    local input = read()
+    return false
+end
+minux.debug("init:launching netprint listen.sys","minux")
+shell.run("/etc/netprint-server/listen.sys")

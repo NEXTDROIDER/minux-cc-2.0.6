@@ -1,0 +1,144 @@
+-- dev api's
+-- color api's
+function colortranslate(colour)
+	expect(1, colour, "string")
+    if colour == "white" then return colors.white end
+    if colour == "orange" then return colors.orange end
+    if colour == "magenta" then return colors.magenta end
+    if colour == "lightBlue" then return colors.lightBlue end
+    if colour == "yellow" then return colors.yellow end
+    if colour == "lime" then return colors.lime end
+    if colour == "pink" then return colors.pink end
+    if colour == "gray" then return colors.gray  end
+    if colour == "lightGray" then return colors.lightGray end
+    if colour == "cyan" then return colors.cyan end
+    if colour == "purple" then return colors.purple end
+    if colour == "blue" then return colors.blue end
+    if colour == "brown" then return colors.brown end
+    if colour == "green" then return colors.green end
+    if colour == "red" then return colors.red end
+    if colour == "black" then return colors.black end
+end
+
+function colorset(textcolor, backgroundcolor)
+	expect(1, textcolor, "string")
+	expect(2, backgroundcolor, "string", "nil")
+	if term.isColor() then 
+		setcolor = dev.colortranslate(textcolor)
+		if backgroundcolor ~= nil then setbg = dev.colortranslate(backgroundcolor)
+		else setbg = colors.black end
+		_G.textcolor = term.getTextColor()
+		_G.bgcolor = term.getBackgroundColor()
+		term.setTextColor(setcolor)
+		term.setBackgroundColor(setbg)
+	end
+end
+
+function colorreset()
+	if term.isColor() then
+		term.setTextColor(colors.white)
+		term.setBackgroundColor(colors.black)
+	end
+end
+
+function colorprint(printstring, textcolor, backgroundcolor)
+	expect(1, printstring, "string")
+	expect(2, textcolor, "string")
+	expect(3, backgroundcolor, "string", "nil")
+	if term.isColor() then
+		setcolor = dev.colortranslate(textcolor)
+		if backgroundcolor ~= nil then setbg = dev.colortranslate(backgroundcolor)
+		else setbg = colors.black end
+		_G.textcolor = term.getTextColor()
+		_G.bgcolor = term.getBackgroundColor()
+		term.setTextColor(setcolor)
+		term.setBackgroundColor(setbg)
+		print(printstring)
+		term.setTextColor(_G.textcolor)
+		term.setBackgroundColor(_G.bgcolor)
+	else
+		print(printstring)
+	end
+end
+
+function colorwrite(printstring, textcolor, backgroundcolor)
+	expect(1, printstring, "string")
+	expect(2, textcolor, "string")
+	expect(3, backgroundcolor, "string", "nil")
+	if term.isColor() then
+		setcolor = dev.colortranslate(textcolor)
+		if backgroundcolor ~= nil then setbg = dev.colortranslate(backgroundcolor)
+		else setbg = colors.black end
+		_G.textcolor = term.getTextColor()
+		_G.bgcolor = term.getBackgroundColor()
+		term.setTextColor(setcolor)
+		term.setBackgroundColor(setbg)
+		write(printstring)
+		term.setTextColor(_G.textcolor)
+		term.setBackgroundColor(_G.bgcolor)
+	else
+		write(printstring)
+	end
+end
+
+-- printer api's
+function printfile(filename, title)
+	expect(1, filename, "string")
+	expect(2, title, "string")
+	printer.newPage()
+	printer.setPageTitle(title)
+	local temp = fs.open(filename,"r")
+	printalive = true
+	counter = 0
+	local pagenumber = 1
+	while printalive == true do
+		counter = counter + 1
+		local data = temp.readLine()
+		if counter == 22 then
+			printer.write("pagenr:"..pagenumber)
+			printer.endPage()
+			printer.newPage()
+			pagenumber = pagenumber + 1
+			printer.setPageTitle(title.." page "..pagenumber)
+			counter = 1
+		end
+		if data ~= nil then
+			printer.write(data)
+			printer.setCursorPos(1, counter)
+		else
+			printalive = false
+		end
+	end
+	temp.close()
+	printer.write("pagenr:"..pagenumber)
+	printer.endPage()
+end
+
+function prepfile(filename)
+	expect(1, filename, "string")
+	if fs.exists(filename) == false then return 0
+	else
+		local oldfile = fs.open(filename, "r")
+		local newfile = fs.open("/temp/devlib/prepfile.tmp","w")
+		local line = oldfile.readLine()
+		while line ~= nil do
+			minux.debug("line contains data","dev")
+			while string.len(line) > 24 do
+				minux.debug("line is longer then 24","dev")
+				local linelength = string.len(line)
+				local writeline = line:sub(1, 24)
+				local newline = line:sub(25, linelength)
+				newfile.writeLine(writeline)
+				line = newline
+			end
+			minux.debug("line is shorter then 24","dev")
+			newfile.writeLine(line)
+			line = oldfile.readLine()
+		end
+		oldfile.close()
+		newfile.close()
+	end
+	return 1
+end
+
+-- end apilib apis

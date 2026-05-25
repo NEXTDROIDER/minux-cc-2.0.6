@@ -1,0 +1,16 @@
+AIF=true
+https://minux.cc/apt/2.0/soft/
+version=1.0.4
+author=minux-team
+php=true
+[depstart]
+netlib
+[depstop]
+[filelist]
+/bin/auth-server.sh
+/etc/server.sys
+/etc/api/authserv
+/etc/auth-server/handlerequests.sys
+/etc/apt/alias/auth-server.al
+/etc/apt/boot/auth-server.d
+/etc/man/auth-server.man

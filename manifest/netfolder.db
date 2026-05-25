@@ -1,0 +1,14 @@
+AIF=true
+https://minux.cc/apt/2.0/soft/
+version=1.1
+author=minux-team
+php=true
+[depstart]
+auth-client
+[depstop]
+[filelist]
+/bin/netfolder.sh
+/etc/apt/alias/netfolder.al
+/etc/apt/boot/netfolder.d
+/etc/man/netfolder.man
+/etc/api/netfolder
