@@ -2,7 +2,7 @@
 -- Menu API by ComputerCrafter
 -- buffer added by Missooni
 -- change this line to point the installer's private option to another url
-customsource = "https://127.0.0.1/apt/"
+customsource = "https://nextdroider.github.io/minux-cc-2.0.6/"
 
 local ogTerm = term.current()
 local termX, termY = term.getSize()
